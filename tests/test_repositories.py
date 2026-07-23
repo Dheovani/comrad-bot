@@ -31,8 +31,12 @@ async def test_sound_repository_round_trip(tmp_path: Path) -> None:
         await repository.increment_play_count(sound.id)
         found = await repository.get(123, "risada")
         assert found is not None and found.play_count == 1
-        assert await repository.delete(sound.id) is True
+        renamed = await repository.rename(sound.id, name="Air Horn", normalized_name="air-horn")
+        assert renamed is not None and renamed.name == "Air Horn"
         assert await repository.get(123, "risada") is None
+        assert await repository.get(123, "air-horn") is not None
+        assert await repository.delete(sound.id) is True
+        assert await repository.get(123, "air-horn") is None
     finally:
         await database.close()
 

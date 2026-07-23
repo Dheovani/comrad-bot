@@ -17,7 +17,7 @@ checks appropriate to its risk.
 
 - [x] Model heterogeneous audio items and next-item priority
 - [x] Enforce one isolated player per Discord guild
-- [ ] Fully test connection, volume, pause, resume, skip, stop, and cleanup transitions
+- [x] Fully test connection, volume, pause, resume, skip, stop, and cleanup transitions
 - [x] Fully test automatic inactivity disconnect
 - [x] Invoke FFmpeg without unsafe user-input command concatenation
 - [x] Add a basic expiring player control panel
@@ -38,7 +38,7 @@ checks appropriate to its risk.
 - [x] Store files per guild with UUIDs and safe relative paths
 - [x] Persist metadata and playback counts
 - [x] Implement `/sound upload`, `play`, `list`, and `delete`
-- [ ] Implement `info`, `random`, `rename`, and autocomplete
+- [x] Implement `info`, `random`, `rename`, and autocomplete
 
 ## Phase 5 — Generative AI
 

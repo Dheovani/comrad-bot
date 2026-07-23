@@ -51,6 +51,10 @@ class FFmpegRunner:
             stdout, _stderr = await asyncio.wait_for(
                 process.communicate(), timeout=self.timeout_seconds
             )
+        except asyncio.CancelledError:
+            process.kill()
+            await process.wait()
+            raise
         except TimeoutError as exc:
             process.kill()
             await process.wait()
@@ -92,6 +96,11 @@ class FFmpegRunner:
         )
         try:
             _, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout_seconds)
+        except asyncio.CancelledError:
+            process.kill()
+            await process.wait()
+            await asyncio.to_thread(destination.unlink, missing_ok=True)
+            raise
         except TimeoutError as exc:
             process.kill()
             await process.wait()

@@ -36,7 +36,7 @@ def test_upload_metadata_checks_extension_mime_and_size() -> None:
             size_bytes=10,
             max_size_bytes=20,
         )
-    with pytest.raises(ValidationError, match="tamanho"):
+    with pytest.raises(ValidationError, match="size"):
         validate_upload_metadata(
             filename="voice.ogg", content_type="audio/ogg", size_bytes=21, max_size_bytes=20
         )
@@ -49,5 +49,5 @@ def test_storage_uses_uuid_and_blocks_path_traversal(tmp_path: Path) -> None:
 
     assert relative == Path("123") / f"{sound_id}.opus"
     assert storage.absolute_path(relative).is_relative_to(tmp_path.resolve())
-    with pytest.raises(ValidationError, match="escaparia"):
+    with pytest.raises(ValidationError, match="escape"):
         storage.absolute_path("../outside.opus")

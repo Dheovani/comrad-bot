@@ -13,10 +13,10 @@ class SoundStorage:
 
     def guild_directory(self, guild_id: int) -> Path:
         if guild_id <= 0:
-            raise ValidationError("ID de servidor inválido.")
+            raise ValidationError("Invalid guild ID.")
         path = (self.root / str(guild_id)).resolve()
         if not path.is_relative_to(self.root):
-            raise ValidationError("Caminho de armazenamento inválido.")
+            raise ValidationError("Invalid storage path.")
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -27,7 +27,7 @@ class SoundStorage:
     def absolute_path(self, relative_path: str | Path) -> Path:
         path = (self.root / relative_path).resolve()
         if not path.is_relative_to(self.root):
-            raise ValidationError("O caminho do áudio escaparia do diretório permitido.")
+            raise ValidationError("The sound path would escape the configured storage directory.")
         return path
 
     async def delete(self, relative_path: str | Path) -> None:

@@ -42,6 +42,15 @@ class SoundRepository:
             await session.delete(sound)
             return True
 
+    async def rename(self, sound_id: str, *, name: str, normalized_name: str) -> CustomSound | None:
+        async with self._sessions.begin() as session:
+            sound = await session.get(CustomSound, sound_id)
+            if sound is None:
+                return None
+            sound.name = name
+            sound.normalized_name = normalized_name
+        return sound
+
     async def increment_play_count(self, sound_id: str) -> None:
         async with self._sessions.begin() as session:
             sound = await session.get(CustomSound, sound_id)

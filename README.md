@@ -21,6 +21,7 @@ The current implementation includes:
   downloads;
 - custom sound validation with extension, MIME type, size, FFprobe content, and duration checks;
 - conversion of accepted uploads to Opus files stored under guild-specific directories with UUIDs;
+- custom sound details, random playback, permission-aware renaming, and name autocomplete;
 - async SQLite persistence through SQLAlchemy 2 repositories and an initial Alembic migration;
 - an optional OpenAI provider using the Responses and Speech APIs;
 - bounded AI memory, local user/guild rate limits, cooldowns, timeouts, and metadata-only usage logs;
@@ -151,6 +152,9 @@ alembic upgrade head
 - `/sound upload name:<name> file:<attachment>`
 - `/sound play name:<name> interrupt:<boolean>`
 - `/sound list`
+- `/sound info name:<name>`
+- `/sound random`
+- `/sound rename name:<name> new-name:<new-name>`
 - `/sound delete name:<name>`
 - `/ai ask prompt:<text>`
 - `/ai reset`
@@ -211,7 +215,6 @@ must be enabled in the repository settings for CodeQL results to appear under th
 - Stream URLs can expire before playback in very long queues; playback-time re-resolution is future
   work.
 - There is no simultaneous mixing or automatic resume after interruption.
-- `/sound info`, `random`, `rename`, and autocomplete are not implemented yet.
 - `/ai summarize`, `/ai status`, and persistent per-guild settings are not implemented yet.
 - SQLite is intended for a single local instance. Distributed deployment requires a different
   persistence and locking strategy.

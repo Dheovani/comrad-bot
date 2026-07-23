@@ -23,13 +23,11 @@ _VALID_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,48}[a-z0-9])?$")
 
 def normalize_sound_name(name: str) -> str:
     if "/" in name or "\\" in name or ".." in name:
-        raise ValidationError("O nome do áudio contém uma sequência de caminho inválida.")
+        raise ValidationError("The sound name contains an invalid path sequence.")
     folded = unicodedata.normalize("NFKD", name.strip()).encode("ascii", "ignore").decode()
     normalized = re.sub(r"[^a-z0-9]+", "-", folded.lower()).strip("-")
     if not normalized or not _VALID_NAME.fullmatch(normalized):
-        raise ValidationError(
-            "Use um nome com 1 a 50 caracteres, contendo letras, números, hífen ou sublinhado."
-        )
+        raise ValidationError("Use a name with 1 to 50 letters, numbers, hyphens, or underscores.")
     return normalized
 
 
@@ -38,11 +36,11 @@ def validate_upload_metadata(
 ) -> str:
     extension = Path(filename).suffix.lower()
     if extension not in SUPPORTED_EXTENSIONS:
-        raise ValidationError("Formato não suportado. Use MP3, WAV, OGG/Opus, FLAC, M4A ou WebM.")
+        raise ValidationError("Unsupported format. Use MP3, WAV, OGG/Opus, FLAC, M4A, or WebM.")
     if content_type and content_type.lower().split(";", 1)[0] not in SUPPORTED_MIME_TYPES:
-        raise ValidationError("O tipo MIME informado não corresponde a um áudio suportado.")
+        raise ValidationError("The provided MIME type is not a supported audio type.")
     if size_bytes <= 0:
-        raise ValidationError("O arquivo está vazio.")
+        raise ValidationError("The file is empty.")
     if size_bytes > max_size_bytes:
-        raise ValidationError("O arquivo excede o limite de tamanho configurado.")
+        raise ValidationError("The file exceeds the configured size limit.")
     return extension

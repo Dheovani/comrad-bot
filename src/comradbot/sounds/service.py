@@ -1,6 +1,10 @@
 """Business rules for custom sound lifecycle."""
 
+from __future__ import annotations
+
+import asyncio
 from pathlib import Path
+from random import choice
 from tempfile import NamedTemporaryFile
 from uuid import uuid4
 
@@ -49,26 +53,23 @@ class SoundService:
             max_size_bytes=self._max_size_bytes,
         )
         if await self._repository.get(guild_id, normalized) is not None:
-            raise ValidationError("Já existe um áudio com esse nome neste servidor.")
+            raise ValidationError("A sound with that name already exists in this server.")
 
         sound_id = str(uuid4())
         relative = self._storage.relative_sound_path(guild_id, sound_id)
         destination = self._storage.absolute_path(relative)
-        destination.parent.mkdir(parents=True, exist_ok=True)
         temporary: Path | None = None
         try:
-            with NamedTemporaryFile(
-                mode="wb",
-                suffix=extension,
-                dir=self._storage.guild_directory(guild_id),
-                delete=False,
-            ) as upload:
-                upload.write(data)
-                temporary = Path(upload.name)
+            guild_directory = await asyncio.to_thread(self._storage.guild_directory, guild_id)
+            temporary = await self._write_temporary_upload(
+                guild_directory,
+                extension,
+                data,
+            )
             info = await self._ffmpeg.probe(temporary)
             if info.duration_seconds > self._max_duration_seconds:
                 raise ValidationError(
-                    f"O áudio excede o limite de {self._max_duration_seconds} segundos."
+                    f"The sound exceeds the {self._max_duration_seconds}-second duration limit."
                 )
             await self._ffmpeg.convert_to_opus(temporary, destination)
             converted = await self._ffmpeg.probe(destination)
@@ -80,28 +81,84 @@ class SoundService:
                 relative_path=relative.as_posix(),
                 creator_id=creator_id,
                 duration_seconds=converted.duration_seconds,
-                size_bytes=destination.stat().st_size,
+                size_bytes=(await asyncio.to_thread(destination.stat)).st_size,
                 format="opus",
             )
             try:
                 return await self._repository.add(sound)
             except IntegrityError as exc:
-                raise ValidationError("Já existe um áudio com esse nome neste servidor.") from exc
+                raise ValidationError(
+                    "A sound with that name already exists in this server."
+                ) from exc
+        except asyncio.CancelledError:
+            await asyncio.to_thread(destination.unlink, missing_ok=True)
+            raise
         except Exception:
-            destination.unlink(missing_ok=True)
+            await asyncio.to_thread(destination.unlink, missing_ok=True)
             raise
         finally:
             if temporary is not None:
-                temporary.unlink(missing_ok=True)
+                await asyncio.to_thread(temporary.unlink, missing_ok=True)
 
-    async def list(self, guild_id: int) -> list[CustomSound]:
+    async def list_sounds(self, guild_id: int) -> list[CustomSound]:
         return await self._repository.list(guild_id)
+
+    async def search(self, guild_id: int, current: str, *, limit: int = 25) -> list[CustomSound]:
+        query = current.strip().casefold()
+        sounds = await self._repository.list(guild_id)
+        matches = (
+            sound
+            for sound in sounds
+            if not query
+            or query in sound.name.casefold()
+            or query in sound.normalized_name.casefold()
+        )
+        return list(matches)[: max(0, min(limit, 25))]
+
+    async def get(self, guild_id: int, name: str) -> CustomSound:
+        return await self._require_sound(guild_id, name)
 
     async def get_audio_item(self, guild_id: int, name: str, requester_id: int) -> AudioItem:
         sound = await self._require_sound(guild_id, name)
+        return await self._audio_item(sound, requester_id)
+
+    async def get_random_audio_item(self, guild_id: int, requester_id: int) -> AudioItem:
+        sounds = await self._repository.list(guild_id)
+        if not sounds:
+            raise ValidationError("This server has no custom sounds yet.")
+        return await self._audio_item(choice(sounds), requester_id)
+
+    async def rename(
+        self,
+        guild_id: int,
+        name: str,
+        new_name: str,
+        actor_id: int,
+        *,
+        is_moderator: bool,
+    ) -> CustomSound:
+        sound = await self._require_sound(guild_id, name)
+        self._ensure_can_modify(sound, actor_id, is_moderator)
+        normalized = normalize_sound_name(new_name)
+        duplicate = await self._repository.get(guild_id, normalized)
+        if duplicate is not None and duplicate.id != sound.id:
+            raise ValidationError("A sound with that name already exists in this server.")
+        try:
+            renamed = await self._repository.rename(
+                sound.id,
+                name=new_name.strip(),
+                normalized_name=normalized,
+            )
+        except IntegrityError as exc:
+            raise ValidationError("A sound with that name already exists in this server.") from exc
+        if renamed is None:
+            raise ValidationError("The sound was deleted before it could be renamed.")
+        return renamed
+
+    async def _audio_item(self, sound: CustomSound, requester_id: int) -> AudioItem:
         path = self._storage.absolute_path(sound.relative_path)
-        if not path.is_file():
-            raise ValidationError("O registro existe, mas o arquivo de áudio não foi encontrado.")
+        if not await asyncio.to_thread(path.is_file):
+            raise ValidationError("The sound record exists, but its audio file is missing.")
         await self._repository.increment_play_count(sound.id)
         return AudioItem(
             item_type=AudioItemType.CUSTOM_SOUND,
@@ -115,18 +172,43 @@ class SoundService:
         self, guild_id: int, name: str, actor_id: int, *, is_moderator: bool
     ) -> CustomSound:
         sound = await self._require_sound(guild_id, name)
-        if actor_id != sound.creator_id and not is_moderator:
-            raise PermissionDeniedError(
-                "Somente o criador ou um moderador pode excluir este áudio."
-            )
+        self._ensure_can_modify(sound, actor_id, is_moderator)
         deleted = await self._repository.delete(sound.id)
         if not deleted:
-            raise ValidationError("O áudio já foi excluído.")
+            raise ValidationError("The sound was already deleted.")
         await self._storage.delete(sound.relative_path)
         return sound
 
     async def _require_sound(self, guild_id: int, name: str) -> CustomSound:
         sound = await self._repository.get(guild_id, normalize_sound_name(name))
         if sound is None:
-            raise ValidationError("Áudio personalizado não encontrado.")
+            raise ValidationError("Custom sound not found.")
         return sound
+
+    @staticmethod
+    def _ensure_can_modify(sound: CustomSound, actor_id: int, is_moderator: bool) -> None:
+        if actor_id != sound.creator_id and not is_moderator:
+            raise PermissionDeniedError("Only the sound creator or a moderator may modify it.")
+
+    @classmethod
+    async def _write_temporary_upload(cls, directory: Path, extension: str, data: bytes) -> Path:
+        write_task = asyncio.create_task(
+            asyncio.to_thread(cls._write_temporary_upload_sync, directory, extension, data)
+        )
+        try:
+            return await asyncio.shield(write_task)
+        except asyncio.CancelledError:
+            temporary = await write_task
+            await asyncio.to_thread(temporary.unlink, missing_ok=True)
+            raise
+
+    @staticmethod
+    def _write_temporary_upload_sync(directory: Path, extension: str, data: bytes) -> Path:
+        with NamedTemporaryFile(
+            mode="wb",
+            suffix=extension,
+            dir=directory,
+            delete=False,
+        ) as upload:
+            upload.write(data)
+            return Path(upload.name)

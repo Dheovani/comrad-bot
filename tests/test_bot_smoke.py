@@ -42,5 +42,23 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "stop",
             "volume",
         }
+        sound = bot.tree.get_command("sound")
+        assert isinstance(sound, app_commands.Group)
+        assert {command.name for command in sound.commands} == {
+            "delete",
+            "info",
+            "list",
+            "play",
+            "random",
+            "rename",
+            "upload",
+        }
+        for command_name in ("delete", "info", "play", "rename"):
+            command = sound.get_command(command_name)
+            assert isinstance(command, app_commands.Command)
+            name_parameter = next(
+                parameter for parameter in command.parameters if parameter.name == "name"
+            )
+            assert name_parameter.autocomplete is True
     finally:
         await bot.close()
