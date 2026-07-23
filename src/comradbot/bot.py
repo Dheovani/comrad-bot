@@ -33,6 +33,7 @@ class ComradBot(commands.Bot):
     def __init__(self, settings: Settings) -> None:
         intents = discord.Intents.none()
         intents.guilds = True
+        intents.guild_messages = True
         intents.voice_states = True
         super().__init__(command_prefix=commands.when_mentioned, intents=intents)
         self.settings = settings

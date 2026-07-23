@@ -18,6 +18,8 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
         )
     )
     try:
+        assert bot.intents.guild_messages is True
+        assert bot.intents.message_content is False
         for extension in EXTENSIONS:
             await bot.load_extension(extension)
 

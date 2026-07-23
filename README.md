@@ -88,8 +88,9 @@ either executable is unavailable.
    Message History, Connect, Speak, and Use Application Commands.
 5. Invite the bot and set the server ID as `DISCORD_GUILD_ID` for immediate development sync.
 
-Do not grant Administrator. Message Content Intent is disabled and is not needed by the current
-commands. The bot enables only Guilds and Voice States intents.
+Do not grant Administrator. Message Content Intent remains disabled. The bot enables Guilds, Guild
+Messages, and Voice States intents. Discord still provides message content when the bot itself is
+directly mentioned, so the mention response does not enable general message monitoring.
 
 ## Environment variables
 
@@ -100,6 +101,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DISCORD_TOKEN` | Yes | Secret bot token; startup fails clearly when missing |
 | `DISCORD_GUILD_ID` | Recommended for development | Guild receiving immediate command sync |
 | `DISCORD_SYNC_GLOBAL_COMMANDS` | No | `false`; global command propagation can take longer |
+| `DISCORD_RESPOND_TO_MENTIONS` | No | `true`; reply with a short `/help` hint when mentioned |
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///./data/comradbot.db` |
 | `OPENAI_API_KEY` | No | AI commands are disabled without it; audio features still work |
 | `OPENAI_MODEL` | No | `gpt-4.1-mini` |
@@ -182,6 +184,10 @@ temporary development policy with migration-only startup is tracked in `TODO.md`
 
 The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
 available as a slash command.
+
+Directly mentioning `@ComradBot` in a server channel produces a short response pointing to
+`/help`. Messages from bots are ignored, the reply does not ping the author again, and this behavior
+can be disabled with `DISCORD_RESPOND_TO_MENTIONS=false`.
 
 ## AI persona
 

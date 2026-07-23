@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     discord_token: SecretStr
     discord_guild_id: int | None = None
     discord_sync_global_commands: bool = False
+    discord_respond_to_mentions: bool = True
 
     database_url: str = "sqlite+aiosqlite:///./data/comradbot.db"
 

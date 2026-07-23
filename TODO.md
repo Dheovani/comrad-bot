@@ -13,6 +13,7 @@ checks appropriate to its risk.
 - [x] Configure async SQLite, SQLAlchemy 2, and controlled development schema bootstrap
 - [x] Add Alembic configuration and an initial migration
 - [x] Add an informational `/help` command
+- [x] Reply to direct guild mentions without enabling Message Content Intent
 
 ## Phase 2 — Audio system
 
