@@ -10,7 +10,7 @@ from comradbot.errors import PermissionDeniedError, VoiceConnectionError
 
 def require_guild(interaction: discord.Interaction) -> discord.Guild:
     if interaction.guild is None:
-        raise VoiceConnectionError("Este comando só pode ser usado em um servidor.")
+        raise VoiceConnectionError("This command can only be used in a server.")
     return interaction.guild
 
 
@@ -18,10 +18,10 @@ def user_voice_channel(
     interaction: discord.Interaction,
 ) -> discord.VoiceChannel | discord.StageChannel:
     if not isinstance(interaction.user, discord.Member):
-        raise VoiceConnectionError("Não foi possível identificar seu canal de voz.")
+        raise VoiceConnectionError("Your voice channel could not be identified.")
     voice = interaction.user.voice
     if voice is None or voice.channel is None:
-        raise VoiceConnectionError("Entre em um canal de voz antes de usar este comando.")
+        raise VoiceConnectionError("Join a voice channel before using this command.")
     return voice.channel
 
 
@@ -40,7 +40,7 @@ async def connect_player_to_user(
         member = cast(discord.Member, interaction.user)
         if not member.guild_permissions.move_members:
             raise PermissionDeniedError(
-                "O bot está em outro canal. É preciso a permissão Mover membros para controlá-lo."
+                "The bot is in another channel. You need Move Members permission to control it."
             )
         await voice.move_to(channel)
     await player.set_voice_client(voice)
@@ -53,11 +53,11 @@ def ensure_same_voice_channel(interaction: discord.Interaction, player: GuildAud
         return
     member = cast(discord.Member, interaction.user)
     if not member.guild_permissions.move_members:
-        raise PermissionDeniedError("Você precisa estar no mesmo canal de voz que o bot.")
+        raise PermissionDeniedError("You must be in the same voice channel as the bot.")
 
 
 def format_duration(seconds: float | None) -> str:
     if seconds is None:
-        return "desconhecida/ao vivo"
+        return "unknown/live"
     total = int(seconds)
     return f"{total // 60}:{total % 60:02d}"

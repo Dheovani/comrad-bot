@@ -11,52 +11,56 @@ class PlayerControls(discord.ui.View):
         self._manager = manager
         self._guild_id = guild_id
 
-    @discord.ui.button(label="Pausar/continuar", emoji="⏯️", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Pause/resume", emoji="⏯️", style=discord.ButtonStyle.secondary)
     async def toggle(
         self, interaction: discord.Interaction, _: discord.ui.Button[discord.ui.View]
     ) -> None:
         player = self._manager.get(self._guild_id)
         if player is None or player.voice_client is None:
-            await interaction.response.send_message("O player não está ativo.", ephemeral=True)
+            await interaction.response.send_message("The player is not active.", ephemeral=True)
             return
         if player.voice_client.is_paused():
             player.resume()
-            message = "Reprodução retomada."
+            message = "Playback resumed."
         else:
             player.pause()
-            message = "Reprodução pausada."
+            message = "Playback paused."
         await interaction.response.send_message(message, ephemeral=True)
 
-    @discord.ui.button(label="Pular", emoji="⏭️", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="Skip", emoji="⏭️", style=discord.ButtonStyle.primary)
     async def skip(
         self, interaction: discord.Interaction, _: discord.ui.Button[discord.ui.View]
     ) -> None:
         player = self._manager.get(self._guild_id)
         if player is None:
-            await interaction.response.send_message("O player não está ativo.", ephemeral=True)
+            await interaction.response.send_message("The player is not active.", ephemeral=True)
             return
         player.skip()
-        await interaction.response.send_message("Item pulado.", ephemeral=True)
+        await interaction.response.send_message("Current item skipped.", ephemeral=True)
 
-    @discord.ui.button(label="Parar", emoji="⏹️", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Stop", emoji="⏹️", style=discord.ButtonStyle.danger)
     async def stop_button(
         self, interaction: discord.Interaction, _: discord.ui.Button[discord.ui.View]
     ) -> None:
         player = self._manager.get(self._guild_id)
         if player is None:
-            await interaction.response.send_message("O player não está ativo.", ephemeral=True)
+            await interaction.response.send_message("The player is not active.", ephemeral=True)
             return
         await player.stop()
-        await interaction.response.send_message("Fila e reprodução encerradas.", ephemeral=True)
+        await interaction.response.send_message(
+            "Playback stopped and queue cleared.", ephemeral=True
+        )
 
-    @discord.ui.button(label="Fila", emoji="📋", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="Queue", emoji="📋", style=discord.ButtonStyle.secondary)
     async def queue(
         self, interaction: discord.Interaction, _: discord.ui.Button[discord.ui.View]
     ) -> None:
         player = self._manager.get(self._guild_id)
         if player is None:
-            await interaction.response.send_message("A fila está vazia.", ephemeral=True)
+            await interaction.response.send_message("The queue is empty.", ephemeral=True)
             return
         items = await player.queue.snapshot()
         description = "\n".join(f"{index}. {item.title}" for index, item in enumerate(items, 1))
-        await interaction.response.send_message(description or "A fila está vazia.", ephemeral=True)
+        await interaction.response.send_message(
+            description or "The queue is empty.", ephemeral=True
+        )

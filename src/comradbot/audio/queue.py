@@ -19,7 +19,7 @@ class AudioQueue:
     async def put(self, item: AudioItem, *, next_item: bool = False) -> int:
         async with self._condition:
             if len(self._items) >= self._max_size:
-                raise ValidationError(f"A fila atingiu o limite de {self._max_size} itens.")
+                raise ValidationError(f"The queue has reached its limit of {self._max_size} items.")
             if next_item:
                 self._items.appendleft(item)
                 position = 1
@@ -37,7 +37,7 @@ class AudioQueue:
     async def remove(self, position: int) -> AudioItem:
         async with self._condition:
             if position < 1 or position > len(self._items):
-                raise ValidationError("Posição inexistente na fila.")
+                raise ValidationError("That queue position does not exist.")
             self._items.rotate(-(position - 1))
             item = self._items.popleft()
             self._items.rotate(position - 1)

@@ -143,6 +143,11 @@ alembic upgrade head
 - `/music skip`
 - `/music stop`
 - `/music queue`
+- `/music now`
+- `/music volume value:<0-100>`
+- `/music remove position:<number>`
+- `/music clear`
+- `/music disconnect`
 - `/sound upload name:<name> file:<attachment>`
 - `/sound play name:<name> interrupt:<boolean>`
 - `/sound list`
@@ -203,7 +208,6 @@ must be enabled in the repository settings for CodeQL results to appear under th
 - Stream URLs can expire before playback in very long queues; playback-time re-resolution is future
   work.
 - There is no simultaneous mixing or automatic resume after interruption.
-- `/music now`, `volume`, `remove`, `clear`, and `disconnect` are not implemented yet.
 - `/sound info`, `random`, `rename`, and autocomplete are not implemented yet.
 - `/ai summarize`, `/ai status`, and persistent per-guild settings are not implemented yet.
 - The player panel needs the same hardened channel permission policy as slash commands.

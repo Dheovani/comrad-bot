@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class GuildAudioPlayer:
     def __init__(
-        self, guild_id: int, *, max_queue_size: int, idle_timeout: int, volume: float
+        self, guild_id: int, *, max_queue_size: int, idle_timeout: float, volume: float
     ) -> None:
         self.guild_id = guild_id
         self.queue = AudioQueue(max_queue_size)
@@ -33,7 +33,7 @@ class GuildAudioPlayer:
 
     async def enqueue(self, item: AudioItem, *, next_item: bool = False) -> int:
         if self._closed:
-            raise AudioPlaybackError("O player deste servidor já foi encerrado.")
+            raise AudioPlaybackError("This guild player has already been shut down.")
         return await self.queue.put(item, next_item=next_item)
 
     def _after_playback(self, error: Exception | None) -> None:
@@ -55,7 +55,7 @@ class GuildAudioPlayer:
                     await self.queue.put(item, next_item=True)
                     continue
             except Exception:
-                logger.exception("Falha ao reproduzir item type=%s", item.item_type)
+                logger.exception("Failed to play audio item type=%s", item.item_type)
             finally:
                 if not self.repeat or self._closed:
                     await item.cleanup()
@@ -64,7 +64,7 @@ class GuildAudioPlayer:
     async def _play(self, item: AudioItem) -> None:
         voice = self.voice_client
         if voice is None or not voice.is_connected():
-            raise VoiceConnectionError("O bot não está conectado a um canal de voz.")
+            raise VoiceConnectionError("The bot is not connected to a voice channel.")
         self._playback_done.clear()
         self._playback_error = None
         source = discord.PCMVolumeTransformer(
@@ -78,29 +78,38 @@ class GuildAudioPlayer:
         voice.play(source, after=self._after_playback)
         await self._playback_done.wait()
         if self._playback_error is not None:
-            raise AudioPlaybackError("A reprodução falhou.") from self._playback_error
+            raise AudioPlaybackError("Audio playback failed.") from self._playback_error
 
     def pause(self) -> None:
         if self.voice_client is None or not self.voice_client.is_playing():
-            raise AudioPlaybackError("Não há áudio em reprodução para pausar.")
+            raise AudioPlaybackError("There is no playing audio to pause.")
         self.voice_client.pause()
 
     def resume(self) -> None:
         if self.voice_client is None or not self.voice_client.is_paused():
-            raise AudioPlaybackError("Não há áudio pausado para continuar.")
+            raise AudioPlaybackError("There is no paused audio to resume.")
         self.voice_client.resume()
 
     def skip(self) -> None:
         if self.voice_client is None or not (
             self.voice_client.is_playing() or self.voice_client.is_paused()
         ):
-            raise AudioPlaybackError("Não há áudio para pular.")
+            raise AudioPlaybackError("There is no audio to skip.")
         self.voice_client.stop()
 
-    async def stop(self) -> None:
+    async def remove_queued(self, position: int) -> AudioItem:
+        item = await self.queue.remove(position)
+        await item.cleanup()
+        return item
+
+    async def clear_queue(self) -> int:
         removed = await self.queue.clear()
         for item in removed:
             await item.cleanup()
+        return len(removed)
+
+    async def stop(self) -> None:
+        await self.clear_queue()
         if self.voice_client and (self.voice_client.is_playing() or self.voice_client.is_paused()):
             self.voice_client.stop()
 

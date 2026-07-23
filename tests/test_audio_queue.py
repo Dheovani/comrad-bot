@@ -30,7 +30,7 @@ async def test_queue_limit_remove_and_clear() -> None:
     await queue.put(item("one"))
     await queue.put(item("two"))
 
-    with pytest.raises(ValidationError, match="limite"):
+    with pytest.raises(ValidationError, match="limit"):
         await queue.put(item("three"))
 
     assert (await queue.remove(2)).title == "two"
@@ -41,7 +41,7 @@ async def test_queue_limit_remove_and_clear() -> None:
 @pytest.mark.asyncio
 async def test_remove_rejects_invalid_position() -> None:
     queue = AudioQueue(max_size=2)
-    with pytest.raises(ValidationError, match="Posição"):
+    with pytest.raises(ValidationError, match="position"):
         await queue.remove(1)
 
 

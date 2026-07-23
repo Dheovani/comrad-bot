@@ -18,7 +18,7 @@ checks appropriate to its risk.
 - [x] Model heterogeneous audio items and next-item priority
 - [x] Enforce one isolated player per Discord guild
 - [ ] Fully test connection, volume, pause, resume, skip, stop, and cleanup transitions
-- [ ] Fully test automatic inactivity disconnect
+- [x] Fully test automatic inactivity disconnect
 - [x] Invoke FFmpeg without unsafe user-input command concatenation
 - [x] Add a basic expiring player control panel
 
@@ -27,7 +27,7 @@ checks appropriate to its risk.
 - [x] Define a platform-neutral source resolver abstraction
 - [x] Resolve temporary public streams with timeouts outside the event loop
 - [x] Implement `/music play`, `pause`, `resume`, `skip`, `stop`, and `queue`
-- [ ] Implement `now`, `volume`, `remove`, `clear`, and `disconnect`
+- [x] Implement `now`, `volume`, `remove`, `clear`, and `disconnect`
 - [ ] Harden channel-control permissions for commands and buttons
 - [ ] Add persistent playlists and saved tracks
 
