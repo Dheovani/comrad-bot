@@ -29,11 +29,13 @@ async def test_queue_limit_remove_and_clear() -> None:
     queue = AudioQueue(max_size=2)
     await queue.put(item("one"))
     await queue.put(item("two"))
+    assert queue.remaining_capacity == 0
 
     with pytest.raises(ValidationError, match="limit"):
         await queue.put(item("three"))
 
     assert (await queue.remove(2)).title == "two"
+    assert queue.remaining_capacity == 1
     assert [queued.title for queued in await queue.clear()] == ["one"]
     assert len(queue) == 0
 

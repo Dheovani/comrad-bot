@@ -16,6 +16,10 @@ class AudioQueue:
     def __len__(self) -> int:
         return len(self._items)
 
+    @property
+    def remaining_capacity(self) -> int:
+        return max(0, self._max_size - len(self._items))
+
     async def put(self, item: AudioItem, *, next_item: bool = False) -> int:
         async with self._condition:
             if len(self._items) >= self._max_size:

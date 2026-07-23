@@ -20,6 +20,8 @@ The current implementation includes:
 - a platform-neutral `AudioResolver` implemented with `yt-dlp`, timeouts, and no permanent music
   downloads, with sanitized provider failures, defensive metadata mapping, and playback-time
   refresh for tracks that waited in the queue;
+- guild-scoped persistent playlists that save public source references and resolve fresh temporary
+  streams when queued;
 - custom sound validation with extension, MIME type, size, FFprobe content, and duration checks;
 - conversion of accepted uploads to Opus files stored under guild-specific directories with UUIDs;
 - custom sound details, random playback, permission-aware renaming, and name autocomplete;
@@ -107,6 +109,8 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `SOUNDS_DIRECTORY` | No | `./data/sounds` |
 | `DEFAULT_VOLUME` | No | `0.5`, constrained to 0–1 |
 | `MAX_QUEUE_SIZE` | No | `100` |
+| `MAX_PLAYLISTS_PER_GUILD` | No | `25` |
+| `MAX_PLAYLIST_TRACKS` | No | `100` |
 | `MAX_SOUND_FILE_SIZE_MB` | No | `10` |
 | `MAX_SOUND_DURATION_SECONDS` | No | `30` |
 | `MAX_AI_CONTEXT_MESSAGES` | No | `30` |
@@ -132,11 +136,16 @@ The equivalent installed entry point is:
 comradbot
 ```
 
-The local development schema is created idempotently at startup. To apply migrations explicitly:
+The local development schema is created idempotently at startup. On a new, empty database, the
+equivalent migration path can be verified or applied explicitly before the first bot start:
 
 ```bash
 alembic upgrade head
 ```
+
+Databases previously created by the development metadata bootstrap should continue using startup
+bootstrap for now; do not run the baseline migration over tables that already exist. Replacing this
+temporary development policy with migration-only startup is tracked in `TODO.md`.
 
 ## Available commands
 
@@ -153,6 +162,13 @@ alembic upgrade head
 - `/music remove position:<number>`
 - `/music clear`
 - `/music disconnect`
+- `/music playlist create name:<name>`
+- `/music playlist add playlist:<name> query:<text-or-url>`
+- `/music playlist list`
+- `/music playlist show name:<name>`
+- `/music playlist play name:<name>`
+- `/music playlist remove name:<name> position:<number>`
+- `/music playlist delete name:<name>`
 - `/sound upload name:<name> file:<attachment>`
 - `/sound play name:<name> interrupt:<boolean>`
 - `/sound list`
@@ -210,6 +226,10 @@ under the Security tab.
   third-party music permanently. Tracks that waited behind another item are re-resolved from their
   public page immediately before playback; a failed refresh is skipped without stopping the guild
   player. DRM bypass and private authentication are out of scope.
+- **Persistent playlists:** playlists belong to one guild and store track titles, durations, and
+  public source references only. Temporary stream URLs and media files are not persisted. Playlist
+  playback resolves each reference again and reports tracks that are unavailable or do not fit in
+  the current queue.
 - **Optional AI:** Cogs depend on `AIService`, which depends on `AIProvider`. Usage records contain
   IDs, operation names, character counts, and outcomes—not full conversation content.
 - **Initial schema:** metadata bootstrap supports local development; migration `0001` is the baseline,
@@ -221,6 +241,7 @@ under the Security tab.
 ## Current limitations
 
 - There is no simultaneous mixing or automatic resume after interruption.
+- Playlist playback resolves tracks sequentially and does not import platform-native playlists.
 - `/ai summarize`, `/ai status`, and persistent per-guild settings are not implemented yet.
 - SQLite is intended for a single local instance. Distributed deployment requires a different
   persistence and locking strategy.

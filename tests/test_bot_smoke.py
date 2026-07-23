@@ -36,6 +36,7 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "now",
             "pause",
             "play",
+            "playlist",
             "queue",
             "remove",
             "resume",
@@ -43,6 +44,30 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "stop",
             "volume",
         }
+        playlist = music.get_command("playlist")
+        assert isinstance(playlist, app_commands.Group)
+        assert {command.name for command in playlist.commands} == {
+            "add",
+            "create",
+            "delete",
+            "list",
+            "play",
+            "remove",
+            "show",
+        }
+        for command_name, parameter_name in (
+            ("add", "playlist_name"),
+            ("delete", "name"),
+            ("play", "name"),
+            ("remove", "name"),
+            ("show", "name"),
+        ):
+            command = playlist.get_command(command_name)
+            assert isinstance(command, app_commands.Command)
+            parameter = next(
+                parameter for parameter in command.parameters if parameter.name == parameter_name
+            )
+            assert parameter.autocomplete is True
         sound = bot.tree.get_command("sound")
         assert isinstance(sound, app_commands.Group)
         assert {command.name for command in sound.commands} == {

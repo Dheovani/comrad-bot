@@ -21,7 +21,8 @@ def build_help_embed() -> discord.Embed:
             "`/music pause` · `/music resume` · `/music skip`\n"
             "`/music stop` · `/music disconnect`\n"
             "`/music queue` · `/music now`\n"
-            "`/music volume` · `/music remove` · `/music clear`"
+            "`/music volume` · `/music remove` · `/music clear`\n"
+            "`/music playlist` — persistent server playlists"
         ),
         inline=False,
     )

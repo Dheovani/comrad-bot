@@ -15,6 +15,7 @@ from comradbot.commands.helpers import (
     require_guild,
 )
 from comradbot.errors import AudioPlaybackError
+from comradbot.services.music import PlaylistDetails
 from comradbot.ui.player import PlayerControls
 
 if TYPE_CHECKING:
@@ -38,8 +39,30 @@ def build_queue_embed(current: AudioItem | None, items: list[AudioItem]) -> disc
     )
 
 
+def build_playlist_embed(details: PlaylistDetails) -> discord.Embed:
+    lines = [
+        f"`{track.position}.` **{track.title}** — {format_duration(track.duration_seconds)}"
+        for track in details.tracks[:20]
+    ]
+    if len(details.tracks) > 20:
+        lines.append(f"*…and {len(details.tracks) - 20} more track(s).*")
+    embed = discord.Embed(
+        title=f"🎼 {details.playlist.name}",
+        description="\n".join(lines) or "This playlist has no tracks.",
+        color=0xD13C3C,
+    )
+    embed.add_field(name="Tracks", value=str(len(details.tracks)))
+    embed.add_field(name="Created by", value=f"<@{details.playlist.creator_id}>")
+    return embed
+
+
 class MusicCog(commands.Cog):
     music = app_commands.Group(name="music", description="Music playback in a voice channel")
+    playlist = app_commands.Group(
+        name="playlist",
+        description="Manage persistent server playlists",
+        parent=music,
+    )
 
     def __init__(self, bot: "ComradBot") -> None:
         self.bot = bot
@@ -146,12 +169,175 @@ class MusicCog(commands.Cog):
         await self.bot.audio_manager.remove(guild.id)
         await interaction.response.send_message("👋 Disconnected from the voice channel.")
 
+    @playlist.command(name="create", description="Create a persistent server playlist.")
+    async def playlist_create(self, interaction: discord.Interaction, name: str) -> None:
+        guild = require_guild(interaction)
+        playlist = await self.bot.playlist_service.create(
+            guild.id,
+            name,
+            interaction.user.id,
+        )
+        await interaction.response.send_message(
+            f"✅ Playlist **{playlist.name}** created.", ephemeral=True
+        )
+
+    @playlist.command(name="add", description="Resolve and save a track to a playlist.")
+    @app_commands.describe(playlist_name="Playlist name", query="Track name or public URL")
+    @app_commands.rename(playlist_name="playlist")
+    async def playlist_add(
+        self,
+        interaction: discord.Interaction,
+        playlist_name: str,
+        query: str,
+    ) -> None:
+        guild = require_guild(interaction)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        track = await self.bot.playlist_service.add_track(
+            guild_id=guild.id,
+            playlist_name=playlist_name,
+            query=query,
+            actor_id=interaction.user.id,
+            is_moderator=self._is_moderator(interaction),
+        )
+        await interaction.followup.send(
+            f"✅ Added **{track.title}** at position **{track.position}**.",
+            ephemeral=True,
+        )
+
+    @playlist_add.autocomplete("playlist_name")
+    async def playlist_add_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        return await self._playlist_choices(interaction, current)
+
+    @playlist.command(name="list", description="List this server's playlists.")
+    async def playlist_list(self, interaction: discord.Interaction) -> None:
+        guild = require_guild(interaction)
+        playlists = await self.bot.playlist_service.list_playlists(guild.id)
+        description = "\n".join(
+            f"• **{details.playlist.name}** — {len(details.tracks)} track(s)"
+            for details in playlists
+        )
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                title="🎼 Server playlists",
+                description=description or "This server has no playlists yet.",
+                color=0xD13C3C,
+            )
+        )
+
+    @playlist.command(name="show", description="Show the tracks in a playlist.")
+    async def playlist_show(self, interaction: discord.Interaction, name: str) -> None:
+        guild = require_guild(interaction)
+        details = await self.bot.playlist_service.get(guild.id, name)
+        await interaction.response.send_message(embed=build_playlist_embed(details))
+
+    @playlist_show.autocomplete("name")
+    async def playlist_show_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        return await self._playlist_choices(interaction, current)
+
+    @playlist.command(name="play", description="Queue all available tracks from a playlist.")
+    async def playlist_play(self, interaction: discord.Interaction, name: str) -> None:
+        guild = require_guild(interaction)
+        await interaction.response.defer(thinking=True)
+        player = await self.bot.audio_manager.get_or_create(guild.id)
+        await connect_player_to_user(interaction, player)
+        result = await self.bot.playlist_service.enqueue(
+            guild_id=guild.id,
+            name=name,
+            requester_id=interaction.user.id,
+            player=player,
+        )
+        embed = discord.Embed(
+            title="🎵 Playlist queued",
+            description=result.playlist.name,
+            color=0xD13C3C,
+        )
+        embed.add_field(name="Queued", value=str(result.queued_count))
+        embed.add_field(name="Skipped or queue-limited", value=str(result.skipped_count))
+        await interaction.followup.send(
+            embed=embed,
+            view=PlayerControls(self.bot.audio_manager, guild.id),
+        )
+
+    @playlist_play.autocomplete("name")
+    async def playlist_play_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        return await self._playlist_choices(interaction, current)
+
+    @playlist.command(name="remove", description="Remove a track from a playlist.")
+    @app_commands.describe(name="Playlist name", position="Displayed track position")
+    async def playlist_remove(
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        position: app_commands.Range[int, 1, 500],
+    ) -> None:
+        guild = require_guild(interaction)
+        track = await self.bot.playlist_service.remove_track(
+            guild_id=guild.id,
+            playlist_name=name,
+            position=position,
+            actor_id=interaction.user.id,
+            is_moderator=self._is_moderator(interaction),
+        )
+        await interaction.response.send_message(
+            f"🗑️ Removed **{track.title}** from the playlist.",
+            ephemeral=True,
+        )
+
+    @playlist_remove.autocomplete("name")
+    async def playlist_remove_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        return await self._playlist_choices(interaction, current)
+
+    @playlist.command(name="delete", description="Delete a playlist you manage.")
+    async def playlist_delete(self, interaction: discord.Interaction, name: str) -> None:
+        guild = require_guild(interaction)
+        playlist = await self.bot.playlist_service.delete(
+            guild_id=guild.id,
+            name=name,
+            actor_id=interaction.user.id,
+            is_moderator=self._is_moderator(interaction),
+        )
+        await interaction.response.send_message(
+            f"🗑️ Playlist **{playlist.name}** deleted.",
+            ephemeral=True,
+        )
+
+    @playlist_delete.autocomplete("name")
+    async def playlist_delete_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        return await self._playlist_choices(interaction, current)
+
     def _player(self, interaction: discord.Interaction) -> GuildAudioPlayer:
         guild = require_guild(interaction)
         player = self.bot.audio_manager.get(guild.id)
         if player is None:
             raise AudioPlaybackError("There is no active player in this server.")
         return player
+
+    async def _playlist_choices(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        if interaction.guild_id is None:
+            return []
+        playlists = await self.bot.playlist_service.search(interaction.guild_id, current)
+        return [
+            app_commands.Choice(name=playlist.name, value=playlist.name) for playlist in playlists
+        ]
+
+    @staticmethod
+    def _is_moderator(interaction: discord.Interaction) -> bool:
+        return isinstance(interaction.user, discord.Member) and (
+            interaction.user.guild_permissions.manage_messages
+            or interaction.user.guild_permissions.manage_guild
+        )
 
 
 async def setup(bot: commands.Bot) -> None:

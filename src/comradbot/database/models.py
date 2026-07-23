@@ -2,7 +2,17 @@
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -41,6 +51,41 @@ class CustomSound(Base):
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     format: Mapped[str] = mapped_column(String(20), nullable=False)
     play_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class Playlist(Base):
+    __tablename__ = "playlists"
+    __table_args__ = (
+        UniqueConstraint("guild_id", "normalized_name", name="uq_playlist_guild_name"),
+        Index("ix_playlist_guild", "guild_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    guild_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    creator_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SavedTrack(Base):
+    __tablename__ = "saved_tracks"
+    __table_args__ = (
+        UniqueConstraint("playlist_id", "position", name="uq_saved_track_position"),
+        Index("ix_saved_track_playlist", "playlist_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    playlist_id: Mapped[int] = mapped_column(
+        ForeignKey("playlists.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(300), nullable=False)
+    source_reference: Mapped[str] = mapped_column(String(2000), nullable=False)
+    duration_seconds: Mapped[float | None] = mapped_column(Float)
+    added_by_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class AIConversation(Base):

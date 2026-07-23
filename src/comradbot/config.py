@@ -35,6 +35,8 @@ class Settings(BaseSettings):
 
     default_volume: float = Field(default=0.5, ge=0.0, le=1.0)
     max_queue_size: int = Field(default=100, ge=1, le=1000)
+    max_playlists_per_guild: int = Field(default=25, ge=1, le=100)
+    max_playlist_tracks: int = Field(default=100, ge=1, le=500)
     max_sound_file_size_mb: int = Field(default=10, ge=1, le=100)
     max_sound_duration_seconds: int = Field(default=30, ge=1, le=600)
     max_ai_context_messages: int = Field(default=30, ge=1, le=100)

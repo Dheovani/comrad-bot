@@ -12,10 +12,11 @@ from comradbot.audio.ffmpeg import FFmpegRunner
 from comradbot.audio.manager import GuildAudioManager
 from comradbot.audio.resolver import YtDlpAudioResolver
 from comradbot.config import Settings
-from comradbot.database.repositories import AIRepository, SoundRepository
+from comradbot.database.repositories import AIRepository, PlaylistRepository, SoundRepository
 from comradbot.database.session import Database
 from comradbot.errors import ComradBotError, PermissionDeniedError
 from comradbot.logging import log_context
+from comradbot.services.music import PlaylistService
 from comradbot.sounds.service import SoundService
 from comradbot.sounds.storage import SoundStorage
 
@@ -43,6 +44,12 @@ class ComradBot(commands.Bot):
             idle_timeout=settings.audio_idle_timeout_seconds,
             default_volume=settings.default_volume,
             source_refresher=self.audio_resolver,
+        )
+        self.playlist_service = PlaylistService(
+            PlaylistRepository(self.database.sessions),
+            self.audio_resolver,
+            max_playlists_per_guild=settings.max_playlists_per_guild,
+            max_tracks_per_playlist=settings.max_playlist_tracks,
         )
         sound_repository = SoundRepository(self.database.sessions)
         self.sound_service = SoundService(

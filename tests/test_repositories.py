@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 
 from comradbot.ai.models import AIMessage
-from comradbot.database.models import CustomSound
-from comradbot.database.repositories import AIRepository, SoundRepository
+from comradbot.database.models import CustomSound, Playlist
+from comradbot.database.repositories import AIRepository, PlaylistRepository, SoundRepository
 from comradbot.database.session import Database
 
 
@@ -60,5 +60,38 @@ async def test_ai_repository_trims_only_what_service_provides(tmp_path: Path) ->
         )
         await repository.reset(1, 2)
         assert await repository.get_messages(1, 2) == []
+    finally:
+        await database.close()
+
+
+@pytest.mark.asyncio
+async def test_playlist_repository_orders_and_renumbers_tracks(tmp_path: Path) -> None:
+    database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'playlist.db').as_posix()}")
+    await database.create_schema()
+    repository = PlaylistRepository(database.sessions)
+    playlist = Playlist(guild_id=123, name="Raid", normalized_name="raid", creator_id=456)
+    try:
+        await repository.add_playlist(playlist)
+        await repository.add_track(
+            playlist_id=playlist.id,
+            title="First",
+            source_reference="https://example.com/first",
+            duration_seconds=10,
+            added_by_id=456,
+        )
+        await repository.add_track(
+            playlist_id=playlist.id,
+            title="Second",
+            source_reference="https://example.com/second",
+            duration_seconds=None,
+            added_by_id=456,
+        )
+
+        removed = await repository.remove_track(playlist.id, 1)
+        assert removed is not None and removed.title == "First"
+        tracks = await repository.list_tracks(playlist.id)
+        assert [(track.position, track.title) for track in tracks] == [(1, "Second")]
+        assert await repository.delete_playlist(playlist.id) is True
+        assert await repository.list_tracks(playlist.id) == []
     finally:
         await database.close()
