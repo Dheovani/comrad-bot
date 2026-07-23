@@ -8,7 +8,12 @@ from comradbot.errors import ValidationError
 
 SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".opus", ".flac", ".m4a", ".webm"}
 SUPPORTED_MIME_TYPES = {
+    "audio/mp3",
     "audio/mpeg",
+    "audio/mpeg3",
+    "audio/x-mp3",
+    "audio/x-mpeg",
+    "audio/x-mpeg-3",
     "audio/wav",
     "audio/x-wav",
     "audio/ogg",
@@ -18,6 +23,7 @@ SUPPORTED_MIME_TYPES = {
     "audio/webm",
     "video/webm",
 }
+GENERIC_MIME_TYPES = {"application/octet-stream", "binary/octet-stream"}
 _VALID_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,48}[a-z0-9])?$")
 
 
@@ -37,8 +43,15 @@ def validate_upload_metadata(
     extension = Path(filename).suffix.lower()
     if extension not in SUPPORTED_EXTENSIONS:
         raise ValidationError("Unsupported format. Use MP3, WAV, OGG/Opus, FLAC, M4A, or WebM.")
-    if content_type and content_type.lower().split(";", 1)[0] not in SUPPORTED_MIME_TYPES:
-        raise ValidationError("The provided MIME type is not a supported audio type.")
+    normalized_mime = content_type.lower().split(";", 1)[0].strip() if content_type else None
+    if (
+        normalized_mime
+        and normalized_mime not in SUPPORTED_MIME_TYPES
+        and normalized_mime not in GENERIC_MIME_TYPES
+    ):
+        raise ValidationError(
+            f"The provided MIME type ({normalized_mime}) is not a supported audio type."
+        )
     if size_bytes <= 0:
         raise ValidationError("The file is empty.")
     if size_bytes > max_size_bytes:

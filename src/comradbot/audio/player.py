@@ -5,11 +5,19 @@ import logging
 
 import discord
 
-from comradbot.audio.models import AudioItem, AudioSourceRefresher
+from comradbot.audio.models import AudioItem, AudioItemType, AudioSourceRefresher
 from comradbot.audio.queue import AudioQueue
 from comradbot.errors import AudioPlaybackError, VoiceConnectionError
 
 logger = logging.getLogger(__name__)
+LOCAL_FFMPEG_BEFORE_OPTIONS = "-nostdin"
+STREAM_FFMPEG_BEFORE_OPTIONS = "-nostdin -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+
+
+def ffmpeg_before_options(item: AudioItem) -> str:
+    if item.item_type is AudioItemType.MUSIC:
+        return STREAM_FFMPEG_BEFORE_OPTIONS
+    return LOCAL_FFMPEG_BEFORE_OPTIONS
 
 
 class GuildAudioPlayer:
@@ -94,7 +102,7 @@ class GuildAudioPlayer:
         source = discord.PCMVolumeTransformer(
             discord.FFmpegPCMAudio(
                 item.source,
-                before_options="-nostdin -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                before_options=ffmpeg_before_options(item),
                 options="-vn",
             ),
             volume=self.volume,

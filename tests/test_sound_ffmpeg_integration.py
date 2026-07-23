@@ -59,7 +59,7 @@ async def test_real_upload_probes_and_converts_wav_to_opus(tmp_path: Path) -> No
         creator_id=456,
         name="Short Signal",
         filename="signal.wav",
-        content_type="audio/wav",
+        content_type="application/octet-stream",
         data=wav_bytes(0.2),
     )
 
@@ -102,7 +102,7 @@ async def test_upload_validation_rejects_metadata_content_and_duration(
     with pytest.raises(ValidationError, match="Unsupported format"):
         await service.upload(**(base | {"filename": "signal.exe"}))
     with pytest.raises(ValidationError, match="MIME"):
-        await service.upload(**(base | {"content_type": "application/octet-stream"}))
+        await service.upload(**(base | {"content_type": "image/png"}))
     with pytest.raises(ValidationError, match="size limit"):
         await service.upload(**(base | {"data": b"x" * 500_001}))
     with pytest.raises(ValidationError, match="valid supported audio"):

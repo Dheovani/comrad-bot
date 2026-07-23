@@ -287,7 +287,9 @@ under the Security tab.
 - **Temporary streams:** the resolver gives ephemeral public stream URLs to FFmpeg and never stores
   third-party music permanently. Tracks that waited behind another item are re-resolved from their
   public page immediately before playback; a failed refresh is skipped without stopping the guild
-  player. DRM bypass and private authentication are out of scope.
+  player. HTTP reconnect flags are applied only to these remote music streams; local custom sounds
+  and TTS files use local-safe FFmpeg options. DRM bypass and private authentication are out of
+  scope.
 - **Persistent playlists:** playlists belong to one guild and store track titles, durations, and
   public source references only. Temporary stream URLs and media files are not persisted. Playlist
   playback resolves each reference again and reports tracks that are unavailable or do not fit in
@@ -332,7 +334,9 @@ under the Security tab.
 - **Groq returns a quota error:** the free plan is rate-limited. Wait for the reported quota window
   to reset and keep the local AI limits enabled.
 - **An upload is rejected:** extension and MIME type are only initial checks; FFprobe must also detect
-  real audio within the configured size and duration limits.
+  real audio within the configured size and duration limits. Generic
+  `application/octet-stream` attachments are accepted only as unknown metadata and still undergo
+  full FFprobe validation before conversion.
 
 ## Contributing and security
 

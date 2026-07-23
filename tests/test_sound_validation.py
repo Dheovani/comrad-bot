@@ -29,6 +29,16 @@ def test_upload_metadata_checks_extension_mime_and_size() -> None:
         )
         == ".ogg"
     )
+    for content_type in ("audio/mp3", "audio/x-mp3", "application/octet-stream"):
+        assert (
+            validate_upload_metadata(
+                filename="voice.mp3",
+                content_type=content_type,
+                size_bytes=10,
+                max_size_bytes=20,
+            )
+            == ".mp3"
+        )
     with pytest.raises(ValidationError, match="MIME"):
         validate_upload_metadata(
             filename="voice.ogg",

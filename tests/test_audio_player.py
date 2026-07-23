@@ -8,7 +8,7 @@ import discord
 import pytest
 
 from comradbot.audio.models import AudioItem, AudioItemType
-from comradbot.audio.player import GuildAudioPlayer
+from comradbot.audio.player import GuildAudioPlayer, ffmpeg_before_options
 from comradbot.errors import AudioPlaybackError, ResolverError
 
 
@@ -60,6 +60,26 @@ def audio_item(title: str, cleanup_path: Path | None = None) -> AudioItem:
 
 def voice_client(fake: FakeVoiceClient) -> discord.VoiceClient:
     return cast(discord.VoiceClient, cast(Any, fake))
+
+
+def test_ffmpeg_reconnect_options_are_only_used_for_streaming_music() -> None:
+    music = audio_item("music")
+    custom_sound = AudioItem(
+        item_type=AudioItemType.CUSTOM_SOUND,
+        title="sound",
+        source="sound.opus",
+        requester_id=1,
+    )
+    tts = AudioItem(
+        item_type=AudioItemType.TTS,
+        title="tts",
+        source="speech.opus",
+        requester_id=1,
+    )
+
+    assert "-reconnect 1" in ffmpeg_before_options(music)
+    assert ffmpeg_before_options(custom_sound) == "-nostdin"
+    assert ffmpeg_before_options(tts) == "-nostdin"
 
 
 @pytest.mark.asyncio
