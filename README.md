@@ -40,7 +40,9 @@ See [TODO.md](TODO.md) for the detailed roadmap and honest completion status.
   activation command.
 
 Runtime and development dependencies are declared in `pyproject.toml`. The project remains
-compatible with `pip install -e .` and does not require Poetry.
+compatible with `pip install -e .` and does not require Poetry. Discord voice dependencies,
+including PyNaCl and the DAVE protocol backend, are installed through the official
+`discord.py[voice]` extra.
 
 ## Installation on Windows with Git Bash
 
@@ -229,8 +231,9 @@ must be enabled in the repository settings for CodeQL results to appear under th
   commands.
 - **Commands do not appear:** set `DISCORD_GUILD_ID`, verify the `applications.commands` scope, and
   restart the bot. Global synchronization is not immediate.
-- **The bot connects but has no audio:** verify Connect/Speak permissions, channel user limits, and
-  that PyNaCl was installed.
+- **The bot connects but has no audio:** verify Connect/Speak permissions and channel user limits.
+  If the log reports that `davey` is missing, reinstall with `python -m pip install -e ".[dev]"`;
+  the declared `discord.py[voice]` dependency installs both the DAVE backend and compatible PyNaCl.
 - **Music is unavailable:** private, protected, removed, or authenticated content is unsupported. Try
   another public source.
 - **AI is disabled:** this is expected without `OPENAI_API_KEY`; music and custom sounds continue to

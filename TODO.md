@@ -19,6 +19,7 @@ checks appropriate to its risk.
 - [x] Enforce one isolated player per Discord guild
 - [x] Fully test connection, volume, pause, resume, skip, stop, and cleanup transitions
 - [x] Fully test automatic inactivity disconnect
+- [x] Install the current Discord voice dependencies, including DAVE support
 - [x] Invoke FFmpeg without unsafe user-input command concatenation
 - [x] Add a basic expiring player control panel
 
