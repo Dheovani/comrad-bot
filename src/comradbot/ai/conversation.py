@@ -1,0 +1,154 @@
+"""Conversation memory, local rate limits and provider orchestration."""
+
+import asyncio
+import time
+from collections import defaultdict, deque
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+from comradbot.ai.models import AIMessage
+from comradbot.ai.provider import AIProvider
+from comradbot.audio.models import AudioItem, AudioItemType
+from comradbot.database.repositories.ai import AIRepository
+from comradbot.errors import AIDisabledError, RateLimitError, ValidationError
+
+
+class SlidingWindowLimiter:
+    def __init__(
+        self,
+        *,
+        user_limit: int,
+        guild_limit: int,
+        window_seconds: float = 60.0,
+        cooldown_seconds: float = 0.0,
+    ) -> None:
+        self._user_limit = user_limit
+        self._guild_limit = guild_limit
+        self._window = window_seconds
+        self._cooldown = cooldown_seconds
+        self._users: dict[tuple[int, int], deque[float]] = defaultdict(deque)
+        self._guilds: dict[int, deque[float]] = defaultdict(deque)
+        self._lock = asyncio.Lock()
+
+    async def acquire(self, guild_id: int, user_id: int, now: float | None = None) -> None:
+        timestamp = time.monotonic() if now is None else now
+        async with self._lock:
+            user_events = self._users[(guild_id, user_id)]
+            guild_events = self._guilds[guild_id]
+            cutoff = timestamp - self._window
+            while user_events and user_events[0] <= cutoff:
+                user_events.popleft()
+            while guild_events and guild_events[0] <= cutoff:
+                guild_events.popleft()
+            if user_events and timestamp - user_events[-1] < self._cooldown:
+                remaining = self._cooldown - (timestamp - user_events[-1])
+                raise RateLimitError(f"Aguarde {remaining:.1f}s antes de usar a IA novamente.")
+            if len(user_events) >= self._user_limit:
+                raise RateLimitError("Você atingiu o limite local de IA. Aguarde um pouco.")
+            if len(guild_events) >= self._guild_limit:
+                raise RateLimitError("O servidor atingiu o limite local de IA. Aguarde um pouco.")
+            user_events.append(timestamp)
+            guild_events.append(timestamp)
+
+
+class AIService:
+    def __init__(
+        self,
+        provider: AIProvider | None,
+        repository: AIRepository,
+        limiter: SlidingWindowLimiter,
+        *,
+        max_context_messages: int,
+        max_prompt_characters: int,
+        max_response_characters: int,
+        temp_directory: Path,
+    ) -> None:
+        self._provider = provider
+        self._repository = repository
+        self._limiter = limiter
+        self._max_context = max_context_messages
+        self._max_prompt = max_prompt_characters
+        self._max_response = max_response_characters
+        self._temp_directory = temp_directory
+        self._tts_locks: dict[int, asyncio.Semaphore] = defaultdict(lambda: asyncio.Semaphore(1))
+
+    @property
+    def enabled(self) -> bool:
+        return self._provider is not None
+
+    async def ask(self, *, guild_id: int, scope_id: int, user_id: int, prompt: str) -> str:
+        provider = self._require_provider()
+        prompt = prompt.strip()
+        if not prompt:
+            raise ValidationError("A pergunta não pode estar vazia.")
+        if len(prompt) > self._max_prompt:
+            raise ValidationError(f"A pergunta pode ter no máximo {self._max_prompt} caracteres.")
+        await self._limiter.acquire(guild_id, user_id)
+        messages = await self._repository.get_messages(guild_id, scope_id)
+        messages.append(AIMessage(role="user", content=prompt))
+        context = messages[-self._max_context :]
+        try:
+            response = await provider.generate_response(context, max_characters=self._max_response)
+        except Exception:
+            await self._record(guild_id, user_id, "ask", len(prompt), 0, False)
+            raise
+        updated = [*context, AIMessage(role="assistant", content=response)][-self._max_context :]
+        await self._repository.save_messages(guild_id, scope_id, updated)
+        await self._record(guild_id, user_id, "ask", len(prompt), len(response), True)
+        return response
+
+    async def reset(self, guild_id: int, scope_id: int) -> None:
+        await self._repository.reset(guild_id, scope_id)
+
+    async def speak(self, *, guild_id: int, user_id: int, prompt: str) -> tuple[str, AudioItem]:
+        provider = self._require_provider()
+        semaphore = self._tts_locks[guild_id]
+        if semaphore.locked():
+            raise RateLimitError("Já existe uma geração de voz em andamento neste servidor.")
+        async with semaphore:
+            text = await self.ask(
+                guild_id=guild_id, scope_id=user_id, user_id=user_id, prompt=prompt
+            )
+            spoken = text[: min(self._max_response, 1000)]
+            self._temp_directory.mkdir(parents=True, exist_ok=True)
+            with NamedTemporaryFile(
+                suffix=".opus", dir=self._temp_directory, delete=False
+            ) as temporary:
+                path = Path(temporary.name)
+            try:
+                await provider.generate_speech(spoken, path)
+            except Exception:
+                await asyncio.to_thread(path.unlink, missing_ok=True)
+                raise
+            return text, AudioItem(
+                item_type=AudioItemType.TTS,
+                title="Resposta falada do ComradBot",
+                source=str(path),
+                requester_id=user_id,
+                cleanup_path=path,
+            )
+
+    def _require_provider(self) -> AIProvider:
+        if self._provider is None:
+            raise AIDisabledError(
+                "A IA não está configurada. Defina OPENAI_API_KEY para habilitar este recurso."
+            )
+        return self._provider
+
+    async def _record(
+        self,
+        guild_id: int,
+        user_id: int,
+        operation: str,
+        input_size: int,
+        output_size: int,
+        success: bool,
+    ) -> None:
+        await self._repository.record_usage(
+            guild_id=guild_id,
+            user_id=user_id,
+            operation=operation,
+            input_characters=input_size,
+            output_characters=output_size,
+            success=success,
+        )

@@ -1,0 +1,42 @@
+"""Registry enforcing one isolated player per guild."""
+
+import asyncio
+
+from comradbot.audio.player import GuildAudioPlayer
+
+
+class GuildAudioManager:
+    def __init__(self, *, max_queue_size: int, idle_timeout: int, default_volume: float) -> None:
+        self._players: dict[int, GuildAudioPlayer] = {}
+        self._lock = asyncio.Lock()
+        self._max_queue_size = max_queue_size
+        self._idle_timeout = idle_timeout
+        self._default_volume = default_volume
+
+    async def get_or_create(self, guild_id: int) -> GuildAudioPlayer:
+        async with self._lock:
+            player = self._players.get(guild_id)
+            if player is None:
+                player = GuildAudioPlayer(
+                    guild_id,
+                    max_queue_size=self._max_queue_size,
+                    idle_timeout=self._idle_timeout,
+                    volume=self._default_volume,
+                )
+                self._players[guild_id] = player
+            return player
+
+    def get(self, guild_id: int) -> GuildAudioPlayer | None:
+        return self._players.get(guild_id)
+
+    async def remove(self, guild_id: int) -> None:
+        async with self._lock:
+            player = self._players.pop(guild_id, None)
+        if player is not None:
+            await player.shutdown()
+
+    async def close(self) -> None:
+        async with self._lock:
+            players = list(self._players.values())
+            self._players.clear()
+        await asyncio.gather(*(player.shutdown() for player in players), return_exceptions=True)
