@@ -1,5 +1,8 @@
 # ComradBot
 
+[![CI](https://github.com/Dheovani/comrad-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Dheovani/comrad-bot/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Dheovani/comrad-bot/actions/workflows/codeql.yml/badge.svg)](https://github.com/Dheovani/comrad-bot/actions/workflows/codeql.yml)
+
 ComradBot is a modular Discord bot for a private group of friends who play games together. The
 current MVP connects three vertical features: music from temporary public streams, validated custom
 sounds, and generative AI responses that can also be spoken in a voice channel.
@@ -173,6 +176,11 @@ python -m pytest
 
 Tests use disposable databases and files plus fakes for external services. The default suite never
 makes real Discord, OpenAI, or media-platform requests.
+
+GitHub Actions runs the same installation, lint, formatting, type-checking, and test commands on
+Python 3.12 and 3.13 for every pull request and push to `main`. A separate CodeQL workflow analyzes
+Python changes on pull requests, pushes to `main`, manual runs, and a weekly schedule. Code scanning
+must be enabled in the repository settings for CodeQL results to appear under the Security tab.
 
 ## Technical decisions
 

@@ -72,7 +72,9 @@ checks appropriate to its risk.
 - [x] Test repositories against disposable SQLite databases
 - [ ] Expand fake-based tests for temporary file creation and failure cleanup
 - [x] Run Ruff, mypy, and pytest across the project
-- [ ] Add coverage reporting, metrics, health checks, and CI
+- [x] Add GitHub Actions CI for Ruff, mypy, and pytest on supported Python versions
+- [x] Add scheduled and change-triggered CodeQL analysis
+- [ ] Add coverage reporting, runtime metrics, and health checks
 
 ## Phase 9 — Deployment
 
