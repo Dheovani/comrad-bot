@@ -1,11 +1,15 @@
 """Small general commands used to verify bot health."""
 
 import logging
+import re
 from typing import TYPE_CHECKING, cast
 
 import discord
 from discord import app_commands
 from discord.ext import commands
+
+from comradbot.errors import ComradBotError
+from comradbot.utils.text import split_message
 
 if TYPE_CHECKING:
     from comradbot.bot import ComradBot
@@ -20,6 +24,17 @@ def should_respond_to_mention(
     bot_user_id: int,
 ) -> bool:
     return not author_is_bot and bot_user_id in mentioned_user_ids
+
+
+def extract_mention_prompt(content: str, bot_user_id: int) -> str:
+    without_bot = re.sub(rf"<@!?{bot_user_id}>", "", content)
+    sanitized = re.sub(r"<@!?\d+>", "@member", without_bot)
+    sanitized = re.sub(r"<@&\d+>", "@role", sanitized)
+    sanitized = re.sub(r"<#\d+>", "#channel", sanitized).strip()
+    return sanitized or (
+        "Você foi chamado por um usuário sem uma pergunta específica. "
+        "Cumprimente-o brevemente e pergunte como pode ajudar."
+    )
 
 
 def build_help_embed() -> discord.Embed:
@@ -56,7 +71,7 @@ def build_help_embed() -> discord.Embed:
         name="🤖 AI",
         value=(
             "`/ai ask` · `/ai reset` · `/ai speak`\n"
-            "AI commands require `OPENAI_API_KEY`; audio features work without it."
+            "AI commands require a configured provider; audio features work without one."
         ),
         inline=False,
     )
@@ -90,18 +105,60 @@ class GeneralCog(commands.Cog):
             )
         ):
             return
+        prompt = extract_mention_prompt(message.content, bot_user.id)
+        try:
+            async with message.channel.typing():
+                response = await self.bot.ai_service.ask(
+                    guild_id=message.guild.id,
+                    scope_id=message.channel.id,
+                    user_id=message.author.id,
+                    prompt=prompt,
+                )
+            chunks = split_message(
+                response,
+                self.bot.settings.max_ai_response_characters,
+            )
+        except ComradBotError as exc:
+            logger.info(
+                "Expected mention conversation failure type=%s guild=%s user=%s",
+                type(exc).__name__,
+                message.guild.id,
+                message.author.id,
+            )
+            chunks = [f"⚠️ {exc}"]
+        except discord.Forbidden:
+            logger.warning(
+                "Cannot reply to a bot mention because the channel denies message access"
+            )
+            return
+        except discord.HTTPException:
+            logger.exception("Discord failed while preparing a mention conversation response")
+            return
+        except Exception:
+            logger.exception(
+                "Unexpected mention conversation failure guild=%s user=%s",
+                message.guild.id,
+                message.author.id,
+            )
+            chunks = ["💥 O ComradBot tropeçou numa engrenagem. Tente novamente em instantes."]
+
         try:
             await message.reply(
-                "At your service, comrade! Use `/help` to see everything I can do.",
+                chunks[0],
                 mention_author=False,
                 allowed_mentions=discord.AllowedMentions.none(),
             )
+            for chunk in chunks[1:]:
+                await message.channel.send(
+                    chunk,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
         except discord.Forbidden:
             logger.warning(
                 "Cannot reply to a bot mention because the channel denies message access"
             )
         except discord.HTTPException:
-            logger.exception("Failed to reply to a bot mention")
+            logger.exception("Failed to send a mention conversation response")
 
     @app_commands.command(name="ping", description="Check whether ComradBot is responding.")
     async def ping(self, interaction: discord.Interaction) -> None:

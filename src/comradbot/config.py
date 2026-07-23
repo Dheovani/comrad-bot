@@ -26,10 +26,13 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite+aiosqlite:///./data/comradbot.db"
 
+    ai_provider: Literal["auto", "openai", "groq"] = "auto"
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4.1-mini"
     openai_tts_model: str = "gpt-4o-mini-tts"
     openai_tts_voice: str = "coral"
+    groq_api_key: SecretStr | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
 
     data_directory: Path = Path("./data")
     sounds_directory: Path = Path("./data/sounds")
@@ -62,7 +65,21 @@ class Settings(BaseSettings):
 
     @property
     def ai_enabled(self) -> bool:
-        return bool(self.openai_api_key and self.openai_api_key.get_secret_value().strip())
+        return self.configured_ai_provider is not None
+
+    @property
+    def configured_ai_provider(self) -> Literal["openai", "groq"] | None:
+        openai_configured = bool(
+            self.openai_api_key and self.openai_api_key.get_secret_value().strip()
+        )
+        groq_configured = bool(self.groq_api_key and self.groq_api_key.get_secret_value().strip())
+        if self.ai_provider == "openai":
+            return "openai" if openai_configured else None
+        if self.ai_provider == "groq":
+            return "groq" if groq_configured else None
+        if openai_configured:
+            return "openai"
+        return "groq" if groq_configured else None
 
     def prepare_directories(self) -> None:
         self.data_directory.mkdir(parents=True, exist_ok=True)

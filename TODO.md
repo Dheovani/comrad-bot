@@ -13,7 +13,7 @@ checks appropriate to its risk.
 - [x] Configure async SQLite, SQLAlchemy 2, and controlled development schema bootstrap
 - [x] Add Alembic configuration and an initial migration
 - [x] Add an informational `/help` command
-- [x] Reply to direct guild mentions without enabling Message Content Intent
+- [x] Route direct guild mentions through bounded AI conversations without Message Content Intent
 
 ## Phase 2 — Audio system
 
@@ -50,10 +50,12 @@ checks appropriate to its risk.
 
 - [x] Define `AIProvider` without coupling commands to a concrete SDK
 - [x] Implement an async OpenAI provider and replaceable persona
+- [x] Implement a configurable Groq text provider with sanitized error mapping
 - [x] Implement bounded memory plus `/ai ask` and `/ai reset`
 - [x] Add user/guild limits, cooldown, timeout, and content-free usage metrics
+- [x] Reuse channel conversation memory for direct bot mentions
 - [ ] Implement `/ai summarize` and `/ai status`
-- [ ] Prepare support for additional concrete providers when needed
+- [x] Support explicit and backward-compatible automatic provider selection
 
 ## Phase 6 — TTS and AI/voice integration
 

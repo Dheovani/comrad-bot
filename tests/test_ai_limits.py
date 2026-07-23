@@ -19,6 +19,9 @@ class FakeProvider:
     async def generate_speech(self, text: str, destination: Path) -> None:
         await asyncio.to_thread(destination.write_bytes, b"fake-opus")
 
+    async def close(self) -> None:
+        return None
+
 
 class FakeRepository:
     def __init__(self) -> None:
@@ -65,6 +68,7 @@ async def test_ai_service_limits_context_and_records_usage(tmp_path: Path) -> No
     repository.messages = [AIMessage(role="user", content=f"old-{index}") for index in range(4)]
     service = AIService(
         provider,
+        provider,
         repository,  # type: ignore[arg-type]
         SlidingWindowLimiter(user_limit=3, guild_limit=3),
         max_context_messages=3,
@@ -87,6 +91,7 @@ async def test_ai_service_limits_context_and_records_usage(tmp_path: Path) -> No
 async def test_disabled_ai_is_friendly(tmp_path: Path) -> None:
     service = AIService(
         None,
+        None,
         FakeRepository(),  # type: ignore[arg-type]
         SlidingWindowLimiter(user_limit=1, guild_limit=1),
         max_context_messages=3,
@@ -94,5 +99,24 @@ async def test_disabled_ai_is_friendly(tmp_path: Path) -> None:
         max_response_characters=20,
         temp_directory=tmp_path,
     )
-    with pytest.raises(AIDisabledError, match="OPENAI_API_KEY"):
+    with pytest.raises(AIDisabledError, match="GROQ_API_KEY"):
         await service.ask(guild_id=1, scope_id=2, user_id=3, prompt="oi")
+
+
+@pytest.mark.asyncio
+async def test_text_only_provider_rejects_speech_before_generating_text(tmp_path: Path) -> None:
+    provider = FakeProvider()
+    service = AIService(
+        provider,
+        None,
+        FakeRepository(),  # type: ignore[arg-type]
+        SlidingWindowLimiter(user_limit=1, guild_limit=1),
+        max_context_messages=3,
+        max_prompt_characters=20,
+        max_response_characters=20,
+        temp_directory=tmp_path,
+    )
+
+    with pytest.raises(AIDisabledError, match="TTS"):
+        await service.speak(guild_id=1, user_id=3, prompt="oi")
+    assert provider.seen == []

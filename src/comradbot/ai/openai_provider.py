@@ -72,3 +72,6 @@ class OpenAIProvider:
         except openai.APIError as exc:
             await asyncio.to_thread(destination.unlink, missing_ok=True)
             raise AIError("O provedor não conseguiu gerar a fala.") from exc
+
+    async def close(self) -> None:
+        await self._client.close()

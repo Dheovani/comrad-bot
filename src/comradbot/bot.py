@@ -7,7 +7,9 @@ from discord import app_commands
 from discord.ext import commands
 
 from comradbot.ai.conversation import AIService, SlidingWindowLimiter
+from comradbot.ai.groq_provider import GroqProvider
 from comradbot.ai.openai_provider import OpenAIProvider
+from comradbot.ai.provider import AIProvider, SpeechProvider
 from comradbot.audio.ffmpeg import FFmpegRunner
 from comradbot.audio.manager import GuildAudioManager
 from comradbot.audio.resolver import YtDlpAudioResolver
@@ -61,17 +63,10 @@ class ComradBot(commands.Bot):
             max_duration_seconds=settings.max_sound_duration_seconds,
         )
         ai_repository = AIRepository(self.database.sessions)
-        provider = None
-        if settings.ai_enabled and settings.openai_api_key is not None:
-            provider = OpenAIProvider(
-                api_key=settings.openai_api_key.get_secret_value(),
-                model=settings.openai_model,
-                tts_model=settings.openai_tts_model,
-                tts_voice=settings.openai_tts_voice,
-                timeout_seconds=settings.ai_timeout_seconds,
-            )
+        provider, speech_provider = build_ai_providers(settings)
         self.ai_service = AIService(
             provider,
+            speech_provider,
             ai_repository,
             SlidingWindowLimiter(
                 user_limit=settings.ai_user_requests_per_minute,
@@ -89,6 +84,10 @@ class ComradBot(commands.Bot):
         self.settings.prepare_directories()
         ffmpeg, ffprobe = self.ffmpeg.verify_tools()
         logger.info("Ferramentas de áudio disponíveis: ffmpeg=%s ffprobe=%s", ffmpeg, ffprobe)
+        logger.info(
+            "Provedor de IA configurado: %s",
+            self.settings.configured_ai_provider or "disabled",
+        )
         await self.database.create_schema()
         for extension in EXTENSIONS:
             await self.load_extension(extension)
@@ -112,6 +111,7 @@ class ComradBot(commands.Bot):
 
     async def close(self) -> None:
         await self.audio_manager.close()
+        await self.ai_service.close()
         await self.database.close()
         await super().close()
 
@@ -136,3 +136,28 @@ class ComradBot(commands.Bot):
             await interaction.followup.send(message, ephemeral=True)
         else:
             await interaction.response.send_message(message, ephemeral=True)
+
+
+def build_ai_providers(
+    settings: Settings,
+) -> tuple[AIProvider | None, SpeechProvider | None]:
+    configured = settings.configured_ai_provider
+    if configured == "groq" and settings.groq_api_key is not None:
+        return (
+            GroqProvider(
+                api_key=settings.groq_api_key.get_secret_value(),
+                model=settings.groq_model,
+                timeout_seconds=settings.ai_timeout_seconds,
+            ),
+            None,
+        )
+    if configured == "openai" and settings.openai_api_key is not None:
+        provider = OpenAIProvider(
+            api_key=settings.openai_api_key.get_secret_value(),
+            model=settings.openai_model,
+            tts_model=settings.openai_tts_model,
+            tts_voice=settings.openai_tts_voice,
+            timeout_seconds=settings.ai_timeout_seconds,
+        )
+        return provider, provider
+    return None, None

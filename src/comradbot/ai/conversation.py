@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from comradbot.ai.models import AIMessage
-from comradbot.ai.provider import AIProvider
+from comradbot.ai.provider import AIProvider, SpeechProvider
 from comradbot.audio.models import AudioItem, AudioItemType
 from comradbot.database.repositories.ai import AIRepository
 from comradbot.errors import AIDisabledError, RateLimitError, ValidationError
@@ -55,6 +55,7 @@ class AIService:
     def __init__(
         self,
         provider: AIProvider | None,
+        speech_provider: SpeechProvider | None,
         repository: AIRepository,
         limiter: SlidingWindowLimiter,
         *,
@@ -64,6 +65,7 @@ class AIService:
         temp_directory: Path,
     ) -> None:
         self._provider = provider
+        self._speech_provider = speech_provider
         self._repository = repository
         self._limiter = limiter
         self._max_context = max_context_messages
@@ -101,7 +103,8 @@ class AIService:
         await self._repository.reset(guild_id, scope_id)
 
     async def speak(self, *, guild_id: int, user_id: int, prompt: str) -> tuple[str, AudioItem]:
-        provider = self._require_provider()
+        self._require_provider()
+        speech_provider = self._require_speech_provider()
         semaphore = self._tts_locks[guild_id]
         if semaphore.locked():
             raise RateLimitError("Já existe uma geração de voz em andamento neste servidor.")
@@ -116,7 +119,7 @@ class AIService:
             ) as temporary:
                 path = Path(temporary.name)
             try:
-                await provider.generate_speech(spoken, path)
+                await speech_provider.generate_speech(spoken, path)
             except Exception:
                 await asyncio.to_thread(path.unlink, missing_ok=True)
                 raise
@@ -131,9 +134,21 @@ class AIService:
     def _require_provider(self) -> AIProvider:
         if self._provider is None:
             raise AIDisabledError(
-                "A IA não está configurada. Defina OPENAI_API_KEY para habilitar este recurso."
+                "A IA não está configurada. Configure GROQ_API_KEY ou OPENAI_API_KEY."
             )
         return self._provider
+
+    def _require_speech_provider(self) -> SpeechProvider:
+        if self._speech_provider is None:
+            raise AIDisabledError(
+                "O provedor de IA configurado não oferece TTS em português. "
+                "Configure a OpenAI para usar /ai speak."
+            )
+        return self._speech_provider
+
+    async def close(self) -> None:
+        if self._provider is not None:
+            await self._provider.close()
 
     async def _record(
         self,

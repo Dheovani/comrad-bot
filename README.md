@@ -26,10 +26,11 @@ The current implementation includes:
 - conversion of accepted uploads to Opus files stored under guild-specific directories with UUIDs;
 - custom sound details, random playback, permission-aware renaming, and name autocomplete;
 - async SQLite persistence through SQLAlchemy 2 repositories and an initial Alembic migration;
-- an optional OpenAI provider using the Responses and Speech APIs;
+- optional Groq and OpenAI text providers selected through configuration, plus OpenAI TTS;
+- conversational responses when the bot is directly mentioned in a guild channel;
 - bounded AI memory, local user/guild rate limits, cooldowns, timeouts, and metadata-only usage logs;
 - centralized contextual logging and sanitized global command error handling;
-- deterministic tests that do not contact Discord, OpenAI, or music platforms.
+- deterministic tests that do not contact Discord, Groq, OpenAI, or music platforms.
 
 See [TODO.md](TODO.md) for the detailed roadmap and honest completion status.
 
@@ -101,9 +102,12 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DISCORD_TOKEN` | Yes | Secret bot token; startup fails clearly when missing |
 | `DISCORD_GUILD_ID` | Recommended for development | Guild receiving immediate command sync |
 | `DISCORD_SYNC_GLOBAL_COMMANDS` | No | `false`; global command propagation can take longer |
-| `DISCORD_RESPOND_TO_MENTIONS` | No | `true`; reply with a short `/help` hint when mentioned |
+| `DISCORD_RESPOND_TO_MENTIONS` | No | `true`; send direct mentions to the configured AI |
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///./data/comradbot.db` |
-| `OPENAI_API_KEY` | No | AI commands are disabled without it; audio features still work |
+| `AI_PROVIDER` | No | `auto`; accepts `auto`, `groq`, or `openai` |
+| `GROQ_API_KEY` | No | Enables Groq text conversations |
+| `GROQ_MODEL` | No | `llama-3.3-70b-versatile` |
+| `OPENAI_API_KEY` | No | Enables OpenAI text responses and TTS |
 | `OPENAI_MODEL` | No | `gpt-4.1-mini` |
 | `OPENAI_TTS_MODEL` | No | `gpt-4o-mini-tts` |
 | `OPENAI_TTS_VOICE` | No | `coral`, an official provider voice |
@@ -123,6 +127,42 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 Additional AI safeguards can be configured with `AI_USER_REQUESTS_PER_MINUTE`,
 `AI_GUILD_REQUESTS_PER_MINUTE`, `AI_COOLDOWN_SECONDS`, `AI_MAX_PROMPT_CHARACTERS`, and
 `AI_TIMEOUT_SECONDS`.
+
+With `AI_PROVIDER=auto`, OpenAI is selected when both provider keys exist, preserving the previous
+configuration behavior. Set the provider explicitly when more than one key is configured.
+
+## Groq setup
+
+Groq provides a rate-limited free plan suitable for a small private Discord server. Free quotas and
+available models may change, so ComradBot treats quota failures as recoverable errors.
+
+1. Create or sign in to a Groq Console account at
+   [console.groq.com](https://console.groq.com/).
+2. Open [API Keys](https://console.groq.com/keys) and create a key for ComradBot.
+3. Copy `.env.example` to `.env` if the local file does not exist yet.
+4. Set these values in `.env`:
+
+   ```env
+   AI_PROVIDER=groq
+   GROQ_API_KEY=gsk_your_key_here
+   GROQ_MODEL=llama-3.3-70b-versatile
+   ```
+
+5. Keep `OPENAI_API_KEY` empty when OpenAI should not be used.
+6. Install the updated dependencies:
+
+   ```bash
+   python -m pip install -e ".[dev]"
+   ```
+
+7. Restart the bot with `python -m comradbot`.
+8. Test `/ai ask prompt:Olá` or send `@ComradBot olá` in a server channel.
+
+Never commit `.env` or paste the Groq key into source code, Discord, screenshots, or logs. Direct
+mentions send the text after the bot mention and the bounded conversation context for that channel
+to the selected provider. Attachments are not sent. The bounded text conversation is stored in the
+local SQLite database until `/ai reset` clears that channel; usage logs store counts and identifiers,
+not an additional copy of the conversation text.
 
 ## Running the bot
 
@@ -185,9 +225,10 @@ temporary development policy with migration-only startup is tracked in `TODO.md`
 The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
 available as a slash command.
 
-Directly mentioning `@ComradBot` in a server channel produces a short response pointing to
-`/help`. Messages from bots are ignored, the reply does not ping the author again, and this behavior
-can be disabled with `DISCORD_RESPOND_TO_MENTIONS=false`.
+Directly mentioning `@ComradBot` in a server channel starts or continues that channel's bounded AI
+conversation. Messages from bots are ignored, Discord IDs in mentions are sanitized before provider
+submission, the reply does not ping the author again, and this behavior can be disabled with
+`DISCORD_RESPOND_TO_MENTIONS=false`.
 
 ## AI persona
 
@@ -197,8 +238,10 @@ collective-workplace imagery for humor. It does not introduce political discussi
 persuasion unless a user explicitly brings up politics. The prompt lives separately in
 `src/comradbot/ai/prompts.py` and can be replaced without changing command code.
 
-Generated speech uses only official provider voices. The project does not support voice cloning or
-impersonation of real people.
+Generated speech uses only official provider voices. Groq currently provides TTS in English and
+Saudi Arabic, so `/ai speak` is intentionally unavailable when Groq is selected; OpenAI remains the
+Portuguese-capable TTS provider. The project does not support voice cloning or impersonation of real
+people.
 
 ## Quality checks
 
@@ -210,7 +253,7 @@ python -m pytest
 ```
 
 Tests use disposable databases and files plus fakes for external services. The default suite never
-makes real Discord, OpenAI, or media-platform requests. Local FFmpeg integration tests generate
+makes real Discord, Groq, OpenAI, or media-platform requests. Local FFmpeg integration tests generate
 short WAV fixtures in memory to verify real probing, validation, cleanup, and Opus conversion.
 
 GitHub Actions installs FFmpeg and runs the same installation, lint, formatting, type-checking, and
@@ -236,8 +279,10 @@ under the Security tab.
   public source references only. Temporary stream URLs and media files are not persisted. Playlist
   playback resolves each reference again and reports tracks that are unavailable or do not fit in
   the current queue.
-- **Optional AI:** Cogs depend on `AIService`, which depends on `AIProvider`. Usage records contain
-  IDs, operation names, character counts, and outcomes—not full conversation content.
+- **Optional AI providers:** Cogs and mention listeners depend on `AIService`, not a concrete SDK.
+  Groq uses its official asynchronous SDK for text; OpenAI supports text and Portuguese TTS. Usage
+  records contain IDs, operation names, character counts, and outcomes—not full conversation
+  content.
 - **Initial schema:** metadata bootstrap supports local development; migration `0001` is the baseline,
   and later schema changes must use Alembic.
 - **Voice control permissions:** mutating slash commands and player buttons require the member to
@@ -249,6 +294,8 @@ under the Security tab.
 - There is no simultaneous mixing or automatic resume after interruption.
 - Playlist playback resolves tracks sequentially and does not import platform-native playlists.
 - `/ai summarize`, `/ai status`, and persistent per-guild settings are not implemented yet.
+- Groq mode supports text conversations but not `/ai speak`; its hosted TTS models do not support
+  Portuguese.
 - SQLite is intended for a single local instance. Distributed deployment requires a different
   persistence and locking strategy.
 - An abrupt process termination can leave a generated file under `data/tmp`; it can be removed while
@@ -267,8 +314,10 @@ under the Security tab.
   the declared `discord.py[voice]` dependency installs both the DAVE backend and compatible PyNaCl.
 - **Music is unavailable:** private, protected, removed, or authenticated content is unsupported. Try
   another public source.
-- **AI is disabled:** this is expected without `OPENAI_API_KEY`; music and custom sounds continue to
-  work normally.
+- **AI is disabled:** set `AI_PROVIDER=groq` with `GROQ_API_KEY`, or configure `OPENAI_API_KEY`.
+  Music and custom sounds continue to work without either provider.
+- **Groq returns a quota error:** the free plan is rate-limited. Wait for the reported quota window
+  to reset and keep the local AI limits enabled.
 - **An upload is rejected:** extension and MIME type are only initial checks; FFprobe must also detect
   real audio within the configured size and duration limits.
 
