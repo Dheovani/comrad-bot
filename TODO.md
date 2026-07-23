@@ -12,6 +12,7 @@ checks appropriate to its risk.
 - [x] Verify `ffmpeg` and `ffprobe` during startup
 - [x] Configure async SQLite, SQLAlchemy 2, and controlled development schema bootstrap
 - [x] Add Alembic configuration and an initial migration
+- [x] Add an informational `/help` command
 
 ## Phase 2 — Audio system
 

@@ -139,6 +139,7 @@ alembic upgrade head
 
 ## Available commands
 
+- `/help`
 - `/ping`
 - `/music play query:<text-or-url>`
 - `/music pause`
