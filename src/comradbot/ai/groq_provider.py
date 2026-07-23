@@ -13,18 +13,25 @@ from groq.types.chat import (
 )
 
 from comradbot.ai.models import AIMessage
-from comradbot.ai.prompts import COMRADBOT_PERSONA
 from comradbot.errors import AIError, OperationTimeoutError, RateLimitError
 
 
 class GroqProvider:
-    def __init__(self, *, api_key: str, model: str, timeout_seconds: float) -> None:
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str,
+        persona: str,
+        timeout_seconds: float,
+    ) -> None:
         self._client = AsyncGroq(
             api_key=api_key,
             timeout=timeout_seconds,
             max_retries=1,
         )
         self._model = model
+        self._persona = persona
         self._timeout_seconds = timeout_seconds
 
     async def generate_response(
@@ -35,9 +42,7 @@ class GroqProvider:
     ) -> str:
         system_message: ChatCompletionSystemMessageParam = {
             "role": "system",
-            "content": (
-                f"{COMRADBOT_PERSONA}\nResponda com no máximo {max_characters} caracteres."
-            ),
+            "content": (f"{self._persona}\nResponda com no máximo {max_characters} caracteres."),
         }
         request_messages: list[ChatCompletionMessageParam] = [system_message]
         for message in messages:

@@ -111,6 +111,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `OPENAI_MODEL` | No | `gpt-4.1-mini` |
 | `OPENAI_TTS_MODEL` | No | `gpt-4o-mini-tts` |
 | `OPENAI_TTS_VOICE` | No | `coral`, an official provider voice |
+| `CUSTOM_COMRADBOT_PERSONA` | No | Replaces the built-in persona when non-empty |
 | `DATA_DIRECTORY` | No | `./data` |
 | `SOUNDS_DIRECTORY` | No | `./data/sounds` |
 | `DEFAULT_VOLUME` | No | `0.5`, constrained to 0–1 |
@@ -237,6 +238,18 @@ television series. It casually calls people “comrade” or “companheiro” a
 collective-workplace imagery for humor. It does not introduce political discussion, advocacy, or
 persuasion unless a user explicitly brings up politics. The prompt lives separately in
 `src/comradbot/ai/prompts.py` and can be replaced without changing command code.
+
+Set `CUSTOM_COMRADBOT_PERSONA` in `.env` to replace the complete built-in persona for either Groq or
+OpenAI. Keep a multiline prompt on one dotenv assignment, using `\n` for newlines and `\"` for
+embedded double quotes:
+
+```env
+CUSTOM_COMRADBOT_PERSONA="You are a concise game-night assistant.\nCall users \"comrade\"."
+```
+
+An empty or whitespace-only value falls back to the built-in `COMRADBOT_PERSONA`; the two prompts
+are not concatenated. Do not paste a raw, unquoted multiline prompt into `.env`, because dotenv will
+interpret its subsequent lines as separate invalid assignments.
 
 Generated speech uses only official provider voices. Groq currently provides TTS in English and
 Saudi Arabic, so `/ai speak` is intentionally unavailable when Groq is selected; OpenAI remains the

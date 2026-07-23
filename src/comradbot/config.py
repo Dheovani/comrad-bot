@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     openai_tts_voice: str = "coral"
     groq_api_key: SecretStr | None = None
     groq_model: str = "llama-3.3-70b-versatile"
+    custom_comradbot_persona: str | None = Field(default=None, max_length=20000)
 
     data_directory: Path = Path("./data")
     sounds_directory: Path = Path("./data/sounds")
@@ -62,6 +63,14 @@ class Settings(BaseSettings):
         if not value.get_secret_value().strip():
             raise ValueError("DISCORD_TOKEN não pode estar vazio")
         return value
+
+    @field_validator("custom_comradbot_persona")
+    @classmethod
+    def normalize_custom_persona(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
 
     @property
     def ai_enabled(self) -> bool:

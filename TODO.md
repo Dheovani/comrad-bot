@@ -50,6 +50,7 @@ checks appropriate to its risk.
 
 - [x] Define `AIProvider` without coupling commands to a concrete SDK
 - [x] Implement an async OpenAI provider and replaceable persona
+- [x] Allow a non-empty environment persona to override the built-in prompt
 - [x] Implement a configurable Groq text provider with sanitized error mapping
 - [x] Implement bounded memory plus `/ai ask` and `/ai reset`
 - [x] Add user/guild limits, cooldown, timeout, and content-free usage metrics

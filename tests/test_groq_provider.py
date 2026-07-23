@@ -11,8 +11,13 @@ from comradbot.ai.models import AIMessage
 from comradbot.errors import OperationTimeoutError, RateLimitError
 
 
-def fake_provider(create: AsyncMock) -> GroqProvider:
-    provider = GroqProvider(api_key="test-key", model="test-model", timeout_seconds=1)
+def fake_provider(create: AsyncMock, *, persona: str = "Custom comrade persona") -> GroqProvider:
+    provider = GroqProvider(
+        api_key="test-key",
+        model="test-model",
+        persona=persona,
+        timeout_seconds=1,
+    )
     client = SimpleNamespace(
         chat=SimpleNamespace(completions=SimpleNamespace(create=create)),
         close=AsyncMock(),
@@ -42,7 +47,7 @@ async def test_groq_provider_maps_conversation_and_limits_response() -> None:
     request = create.await_args.kwargs
     assert request["model"] == "test-model"
     assert request["messages"][0]["role"] == "system"
-    assert "comradbot" in request["messages"][0]["content"].casefold()
+    assert request["messages"][0]["content"].startswith("Custom comrade persona")
     assert request["messages"][1:] == [
         {"role": "user", "content": "olá"},
         {"role": "assistant", "content": "saudações"},

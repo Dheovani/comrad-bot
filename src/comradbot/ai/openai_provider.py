@@ -8,7 +8,6 @@ import openai
 from openai import AsyncOpenAI
 
 from comradbot.ai.models import AIMessage
-from comradbot.ai.prompts import COMRADBOT_PERSONA
 from comradbot.errors import AIError, OperationTimeoutError, RateLimitError
 
 
@@ -18,12 +17,14 @@ class OpenAIProvider:
         *,
         api_key: str,
         model: str,
+        persona: str,
         tts_model: str,
         tts_voice: str,
         timeout_seconds: float,
     ) -> None:
         self._client = AsyncOpenAI(api_key=api_key, timeout=timeout_seconds, max_retries=1)
         self._model = model
+        self._persona = persona
         self._tts_model = tts_model
         self._tts_voice = tts_voice
         self._timeout_seconds = timeout_seconds
@@ -35,7 +36,7 @@ class OpenAIProvider:
                 self._client.responses.create(
                     model=self._model,
                     instructions=(
-                        f"{COMRADBOT_PERSONA}\nResponda com no máximo {max_characters} caracteres."
+                        f"{self._persona}\nResponda com no máximo {max_characters} caracteres."
                     ),
                     input=input_messages,  # type: ignore[arg-type]
                 ),

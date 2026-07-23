@@ -9,6 +9,7 @@ from discord.ext import commands
 from comradbot.ai.conversation import AIService, SlidingWindowLimiter
 from comradbot.ai.groq_provider import GroqProvider
 from comradbot.ai.openai_provider import OpenAIProvider
+from comradbot.ai.prompts import resolve_comradbot_persona
 from comradbot.ai.provider import AIProvider, SpeechProvider
 from comradbot.audio.ffmpeg import FFmpegRunner
 from comradbot.audio.manager import GuildAudioManager
@@ -142,11 +143,13 @@ def build_ai_providers(
     settings: Settings,
 ) -> tuple[AIProvider | None, SpeechProvider | None]:
     configured = settings.configured_ai_provider
+    persona = resolve_comradbot_persona(settings.custom_comradbot_persona)
     if configured == "groq" and settings.groq_api_key is not None:
         return (
             GroqProvider(
                 api_key=settings.groq_api_key.get_secret_value(),
                 model=settings.groq_model,
+                persona=persona,
                 timeout_seconds=settings.ai_timeout_seconds,
             ),
             None,
@@ -155,6 +158,7 @@ def build_ai_providers(
         provider = OpenAIProvider(
             api_key=settings.openai_api_key.get_secret_value(),
             model=settings.openai_model,
+            persona=persona,
             tts_model=settings.openai_tts_model,
             tts_voice=settings.openai_tts_voice,
             timeout_seconds=settings.ai_timeout_seconds,

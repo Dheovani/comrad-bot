@@ -11,6 +11,7 @@ from comradbot.config import Settings
 async def test_all_command_extensions_load_without_external_services(tmp_path: Path) -> None:
     bot = ComradBot(
         Settings(
+            _env_file=None,
             discord_token="test-token",
             database_url=f"sqlite+aiosqlite:///{(tmp_path / 'bot.db').as_posix()}",
             data_directory=tmp_path,
