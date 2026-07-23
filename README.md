@@ -18,7 +18,7 @@ The current implementation includes:
 - a bounded guild audio queue with priority insertion for custom sounds and TTS;
 - pause, resume, skip, stop, idle disconnect, and a small button-based player panel;
 - a platform-neutral `AudioResolver` implemented with `yt-dlp`, timeouts, and no permanent music
-  downloads;
+  downloads, with sanitized provider failures and defensive metadata mapping;
 - custom sound validation with extension, MIME type, size, FFprobe content, and duration checks;
 - conversion of accepted uploads to Opus files stored under guild-specific directories with UUIDs;
 - custom sound details, random playback, permission-aware renaming, and name autocomplete;
@@ -187,12 +187,14 @@ python -m pytest
 ```
 
 Tests use disposable databases and files plus fakes for external services. The default suite never
-makes real Discord, OpenAI, or media-platform requests.
+makes real Discord, OpenAI, or media-platform requests. Local FFmpeg integration tests generate
+short WAV fixtures in memory to verify real probing, validation, cleanup, and Opus conversion.
 
-GitHub Actions runs the same installation, lint, formatting, type-checking, and test commands on
-Python 3.12 and 3.13 for every pull request and push to `main`. A separate CodeQL workflow analyzes
-Python changes on pull requests, pushes to `main`, manual runs, and a weekly schedule. Code scanning
-must be enabled in the repository settings for CodeQL results to appear under the Security tab.
+GitHub Actions installs FFmpeg and runs the same installation, lint, formatting, type-checking, and
+test commands on Python 3.12 and 3.13 for every pull request and push to `main`. A separate CodeQL
+workflow analyzes Python changes on pull requests, pushes to `main`, manual runs, and a weekly
+schedule. Code scanning must be enabled in the repository settings for CodeQL results to appear
+under the Security tab.
 
 ## Technical decisions
 

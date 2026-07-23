@@ -2,11 +2,14 @@
 
 import asyncio
 import json
+import logging
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
 from comradbot.errors import AudioPlaybackError, OperationTimeoutError, ValidationError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,7 +32,7 @@ class FFmpegRunner:
                 name for name, path in (("ffmpeg", ffmpeg), ("ffprobe", ffprobe)) if path is None
             )
             raise RuntimeError(
-                f"Ferramentas ausentes no PATH: {missing}. Instale o FFmpeg e reinicie o terminal."
+                f"Missing tools on PATH: {missing}. Install FFmpeg and restart the terminal."
             )
         return ffmpeg, ffprobe
 
@@ -58,18 +61,18 @@ class FFmpegRunner:
         except TimeoutError as exc:
             process.kill()
             await process.wait()
-            raise OperationTimeoutError("FFprobe excedeu o tempo limite.") from exc
+            raise OperationTimeoutError("FFprobe timed out.") from exc
         if process.returncode != 0:
-            raise ValidationError("O arquivo não contém um áudio válido e suportado.")
+            raise ValidationError("The file does not contain valid supported audio.")
         try:
             payload = json.loads(stdout)
             duration = float(payload["format"]["duration"])
             format_name = str(payload["format"].get("format_name", "unknown"))
             has_audio = any(stream.get("codec_type") == "audio" for stream in payload["streams"])
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise ValidationError("Não foi possível ler os metadados do áudio.") from exc
+            raise ValidationError("The audio metadata could not be read.") from exc
         if not has_audio or duration <= 0:
-            raise ValidationError("O arquivo não contém uma faixa de áudio reproduzível.")
+            raise ValidationError("The file does not contain a playable audio stream.")
         return MediaInfo(duration_seconds=duration, format_name=format_name, has_audio=has_audio)
 
     async def convert_to_opus(self, source: Path, destination: Path) -> None:
@@ -105,8 +108,11 @@ class FFmpegRunner:
             process.kill()
             await process.wait()
             await asyncio.to_thread(destination.unlink, missing_ok=True)
-            raise OperationTimeoutError("A conversão do áudio excedeu o tempo limite.") from exc
+            raise OperationTimeoutError("Audio conversion timed out.") from exc
         if process.returncode != 0:
             await asyncio.to_thread(destination.unlink, missing_ok=True)
             detail = stderr.decode(errors="replace")[-500:]
-            raise AudioPlaybackError(f"FFmpeg não conseguiu converter o áudio: {detail}")
+            logger.error(
+                "FFmpeg conversion failed returncode=%s detail=%s", process.returncode, detail
+            )
+            raise AudioPlaybackError("FFmpeg could not convert the audio.")

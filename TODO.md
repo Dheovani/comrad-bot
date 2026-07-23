@@ -28,6 +28,7 @@ checks appropriate to its risk.
 
 - [x] Define a platform-neutral source resolver abstraction
 - [x] Resolve temporary public streams with timeouts outside the event loop
+- [x] Test resolver metadata mapping, timeout, and provider error sanitization
 - [x] Implement `/music play`, `pause`, `resume`, `skip`, `stop`, and `queue`
 - [x] Implement `now`, `volume`, `remove`, `clear`, and `disconnect`
 - [x] Harden channel-control permissions for commands and buttons
@@ -35,8 +36,8 @@ checks appropriate to its risk.
 
 ## Phase 4 — Custom sounds
 
-- [ ] Add end-to-end tests for name, extension, MIME, size, content, and duration validation
-- [ ] Add end-to-end tests for FFmpeg conversion to the internal format
+- [x] Add end-to-end tests for name, extension, MIME, size, content, and duration validation
+- [x] Add end-to-end tests for FFmpeg conversion to the internal format
 - [x] Store files per guild with UUIDs and safe relative paths
 - [x] Persist metadata and playback counts
 - [x] Implement `/sound upload`, `play`, `list`, and `delete`
@@ -72,7 +73,7 @@ checks appropriate to its risk.
 - [x] Test sound names, metadata validation, and safe paths
 - [x] Test cooldowns, context limits, and long-response splitting
 - [x] Test repositories against disposable SQLite databases
-- [ ] Expand fake-based tests for temporary file creation and failure cleanup
+- [x] Expand fake-based tests for temporary file creation and failure cleanup
 - [x] Run Ruff, mypy, and pytest across the project
 - [x] Add GitHub Actions CI for Ruff, mypy, and pytest on supported Python versions
 - [x] Add scheduled and change-triggered CodeQL analysis
