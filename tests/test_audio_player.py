@@ -9,7 +9,7 @@ import pytest
 
 from comradbot.audio.models import AudioItem, AudioItemType
 from comradbot.audio.player import GuildAudioPlayer
-from comradbot.errors import AudioPlaybackError
+from comradbot.errors import AudioPlaybackError, ResolverError
 
 
 class FakeVoiceClient:
@@ -171,6 +171,91 @@ async def test_player_advances_and_cleans_each_completed_item(tmp_path: Path) ->
             await asyncio.sleep(0)
         assert not second_path.exists()
         assert player.current is None
+    finally:
+        release_second.set()
+        await player.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_queued_music_refreshes_source_immediately_before_playback() -> None:
+    refresher = SimpleNamespace(
+        refresh_source=AsyncMock(return_value="fresh-source"),
+    )
+    player = GuildAudioPlayer(
+        1,
+        max_queue_size=5,
+        idle_timeout=300,
+        volume=0.5,
+        source_refresher=cast(Any, refresher),
+    )
+    first_started = asyncio.Event()
+    release_first = asyncio.Event()
+    second_started = asyncio.Event()
+    release_second = asyncio.Event()
+
+    async def fake_play(item: AudioItem) -> None:
+        if item.title == "first":
+            first_started.set()
+            await release_first.wait()
+        else:
+            second_started.set()
+            await release_second.wait()
+
+    player._play = AsyncMock(side_effect=fake_play)
+    first = audio_item("first")
+    second = audio_item("second")
+    second.webpage_url = "https://example.test/watch/2"
+    try:
+        await player.enqueue(first, refresh_if_queued=True)
+        await asyncio.wait_for(first_started.wait(), timeout=0.5)
+        await player.enqueue(second, refresh_if_queued=True)
+        assert first.refresh_before_playback is False
+        assert second.refresh_before_playback is True
+
+        release_first.set()
+        await asyncio.wait_for(second_started.wait(), timeout=0.5)
+
+        assert second.source == "fresh-source"
+        assert second.refresh_before_playback is False
+        refresher.refresh_source.assert_awaited_once_with(second)
+    finally:
+        release_first.set()
+        release_second.set()
+        await player.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_refresh_failure_skips_broken_music_and_advances_queue() -> None:
+    refresher = SimpleNamespace(
+        refresh_source=AsyncMock(side_effect=[ResolverError("expired"), "fresh-second-source"]),
+    )
+    player = GuildAudioPlayer(
+        1,
+        max_queue_size=5,
+        idle_timeout=300,
+        volume=0.5,
+        source_refresher=cast(Any, refresher),
+    )
+    second_started = asyncio.Event()
+    release_second = asyncio.Event()
+
+    async def fake_play(item: AudioItem) -> None:
+        assert item.title == "second"
+        second_started.set()
+        await release_second.wait()
+
+    player._play = AsyncMock(side_effect=fake_play)
+    first = audio_item("first")
+    first.refresh_before_playback = True
+    second = audio_item("second")
+    second.refresh_before_playback = True
+    try:
+        await player.enqueue(first)
+        await player.enqueue(second)
+        await asyncio.wait_for(second_started.wait(), timeout=0.5)
+
+        assert second.source == "fresh-second-source"
+        assert player._play.await_count == 1
     finally:
         release_second.set()
         await player.shutdown()

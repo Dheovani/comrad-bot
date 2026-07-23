@@ -37,12 +37,13 @@ class ComradBot(commands.Bot):
         self.settings = settings
         self.database = Database(settings.database_url)
         self.ffmpeg = FFmpegRunner()
+        self.audio_resolver = YtDlpAudioResolver(settings.music_resolve_timeout_seconds)
         self.audio_manager = GuildAudioManager(
             max_queue_size=settings.max_queue_size,
             idle_timeout=settings.audio_idle_timeout_seconds,
             default_volume=settings.default_volume,
+            source_refresher=self.audio_resolver,
         )
-        self.audio_resolver = YtDlpAudioResolver(settings.music_resolve_timeout_seconds)
         sound_repository = SoundRepository(self.database.sessions)
         self.sound_service = SoundService(
             sound_repository,

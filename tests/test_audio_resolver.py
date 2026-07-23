@@ -1,11 +1,12 @@
 import asyncio
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from yt_dlp.utils import DownloadError
 
 from comradbot.audio import resolver as resolver_module
-from comradbot.audio.models import AudioItemType
+from comradbot.audio.models import AudioItem, AudioItemType
 from comradbot.audio.resolver import YtDlpAudioResolver, audio_item_from_info
 from comradbot.errors import OperationTimeoutError, ResolverError
 
@@ -81,6 +82,48 @@ async def test_resolver_maps_worker_timeout(monkeypatch: pytest.MonkeyPatch) -> 
 
     with pytest.raises(OperationTimeoutError, match="timed out"):
         await resolver.resolve("example", requester_id=42)
+
+
+@pytest.mark.asyncio
+async def test_refresh_source_resolves_original_public_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    resolver = YtDlpAudioResolver(timeout_seconds=1)
+    refreshed = AudioItem(
+        AudioItemType.MUSIC,
+        "Track",
+        "https://media.example/fresh",
+        requester_id=42,
+    )
+    resolve = AsyncMock(return_value=refreshed)
+    monkeypatch.setattr(resolver, "resolve", resolve)
+    queued = AudioItem(
+        AudioItemType.MUSIC,
+        "Track",
+        "https://media.example/expired",
+        requester_id=42,
+        webpage_url="https://example.test/watch/1",
+        refresh_before_playback=True,
+    )
+
+    source = await resolver.refresh_source(queued)
+
+    assert source == "https://media.example/fresh"
+    resolve.assert_awaited_once_with("https://example.test/watch/1", 42)
+
+
+@pytest.mark.asyncio
+async def test_refresh_source_rejects_non_music_item() -> None:
+    resolver = YtDlpAudioResolver(timeout_seconds=1)
+    sound = AudioItem(
+        AudioItemType.CUSTOM_SOUND,
+        "Sound",
+        "local.opus",
+        requester_id=42,
+    )
+
+    with pytest.raises(ResolverError, match="does not have"):
+        await resolver.refresh_source(sound)
 
 
 def test_yt_dlp_resolution_uses_search_without_downloading(

@@ -2,16 +2,25 @@
 
 import asyncio
 
+from comradbot.audio.models import AudioSourceRefresher
 from comradbot.audio.player import GuildAudioPlayer
 
 
 class GuildAudioManager:
-    def __init__(self, *, max_queue_size: int, idle_timeout: int, default_volume: float) -> None:
+    def __init__(
+        self,
+        *,
+        max_queue_size: int,
+        idle_timeout: int,
+        default_volume: float,
+        source_refresher: AudioSourceRefresher | None = None,
+    ) -> None:
         self._players: dict[int, GuildAudioPlayer] = {}
         self._lock = asyncio.Lock()
         self._max_queue_size = max_queue_size
         self._idle_timeout = idle_timeout
         self._default_volume = default_volume
+        self._source_refresher = source_refresher
 
     async def get_or_create(self, guild_id: int) -> GuildAudioPlayer:
         async with self._lock:
@@ -22,6 +31,7 @@ class GuildAudioManager:
                     max_queue_size=self._max_queue_size,
                     idle_timeout=self._idle_timeout,
                     volume=self._default_volume,
+                    source_refresher=self._source_refresher,
                 )
                 self._players[guild_id] = player
             return player

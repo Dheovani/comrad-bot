@@ -7,11 +7,11 @@ from typing import Any, Protocol
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError
 
-from comradbot.audio.models import AudioItem, AudioItemType
+from comradbot.audio.models import AudioItem, AudioItemType, AudioSourceRefresher
 from comradbot.errors import OperationTimeoutError, ResolverError
 
 
-class AudioResolver(Protocol):
+class AudioResolver(AudioSourceRefresher, Protocol):
     async def resolve(self, query: str, requester_id: int) -> AudioItem: ...
 
 
@@ -60,6 +60,12 @@ class YtDlpAudioResolver:
 
     def __init__(self, timeout_seconds: float) -> None:
         self._timeout_seconds = timeout_seconds
+
+    async def refresh_source(self, item: AudioItem) -> str:
+        if item.item_type is not AudioItemType.MUSIC or item.webpage_url is None:
+            raise ResolverError("This audio item does not have a refreshable public source.")
+        refreshed = await self.resolve(item.webpage_url, item.requester_id)
+        return refreshed.source
 
     async def resolve(self, query: str, requester_id: int) -> AudioItem:
         normalized_query = query.strip()

@@ -32,6 +32,8 @@ checks appropriate to its risk.
 - [x] Implement `/music play`, `pause`, `resume`, `skip`, `stop`, and `queue`
 - [x] Implement `now`, `volume`, `remove`, `clear`, and `disconnect`
 - [x] Harden channel-control permissions for commands and buttons
+- [x] Refresh queued temporary stream URLs immediately before playback
+- [x] Test queue display truncation, ordering, and requester mapping
 - [ ] Add persistent playlists and saved tracks
 
 ## Phase 4 — Custom sounds

@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from comradbot.audio.models import AudioItem
 from comradbot.audio.player import GuildAudioPlayer
 from comradbot.commands.helpers import (
     connect_player_to_user,
@@ -18,6 +19,23 @@ from comradbot.ui.player import PlayerControls
 
 if TYPE_CHECKING:
     from comradbot.bot import ComradBot
+
+
+def build_queue_embed(current: AudioItem | None, items: list[AudioItem]) -> discord.Embed:
+    lines: list[str] = []
+    if current is not None:
+        lines.append(f"**Now playing:** {current.title}")
+    lines.extend(
+        f"`{index}.` {item.title} — <@{item.requester_id}>"
+        for index, item in enumerate(items[:20], 1)
+    )
+    if len(items) > 20:
+        lines.append(f"*…and {len(items) - 20} more item(s).*")
+    return discord.Embed(
+        title="📋 ComradBot queue",
+        description="\n".join(lines) or "The queue is empty.",
+        color=0xD13C3C,
+    )
 
 
 class MusicCog(commands.Cog):
@@ -34,7 +52,7 @@ class MusicCog(commands.Cog):
         item = await self.bot.audio_resolver.resolve(query, interaction.user.id)
         player = await self.bot.audio_manager.get_or_create(guild.id)
         await connect_player_to_user(interaction, player)
-        position = await player.enqueue(item)
+        position = await player.enqueue(item, refresh_if_queued=True)
         embed = discord.Embed(title="🎵 Music queued", description=item.title, color=0xD13C3C)
         embed.add_field(name="Requested by", value=interaction.user.mention)
         embed.add_field(name="Duration", value=format_duration(item.duration_seconds))
@@ -79,21 +97,7 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message("The queue is empty.")
             return
         items = await player.queue.snapshot()
-        lines: list[str] = []
-        if player.current:
-            lines.append(f"**Now playing:** {player.current.title}")
-        lines.extend(
-            f"`{index}.` {item.title} — <@{item.requester_id}>"
-            for index, item in enumerate(items[:20], 1)
-        )
-        if len(items) > 20:
-            lines.append(f"*…and {len(items) - 20} more item(s).*")
-        embed = discord.Embed(
-            title="📋 ComradBot queue",
-            description="\n".join(lines) or "The queue is empty.",
-            color=0xD13C3C,
-        )
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=build_queue_embed(player.current, items))
 
     @music.command(name="now", description="Show the current audio item.")
     async def now(self, interaction: discord.Interaction) -> None:

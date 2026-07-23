@@ -5,7 +5,7 @@ import logging
 
 import discord
 
-from comradbot.audio.models import AudioItem
+from comradbot.audio.models import AudioItem, AudioSourceRefresher
 from comradbot.audio.queue import AudioQueue
 from comradbot.errors import AudioPlaybackError, VoiceConnectionError
 
@@ -14,7 +14,13 @@ logger = logging.getLogger(__name__)
 
 class GuildAudioPlayer:
     def __init__(
-        self, guild_id: int, *, max_queue_size: int, idle_timeout: float, volume: float
+        self,
+        guild_id: int,
+        *,
+        max_queue_size: int,
+        idle_timeout: float,
+        volume: float,
+        source_refresher: AudioSourceRefresher | None = None,
     ) -> None:
         self.guild_id = guild_id
         self.queue = AudioQueue(max_queue_size)
@@ -23,6 +29,7 @@ class GuildAudioPlayer:
         self.current: AudioItem | None = None
         self.voice_client: discord.VoiceClient | None = None
         self.repeat = False
+        self._source_refresher = source_refresher
         self._closed = False
         self._playback_done = asyncio.Event()
         self._playback_error: Exception | None = None
@@ -31,9 +38,17 @@ class GuildAudioPlayer:
     async def set_voice_client(self, voice_client: discord.VoiceClient) -> None:
         self.voice_client = voice_client
 
-    async def enqueue(self, item: AudioItem, *, next_item: bool = False) -> int:
+    async def enqueue(
+        self,
+        item: AudioItem,
+        *,
+        next_item: bool = False,
+        refresh_if_queued: bool = False,
+    ) -> int:
         if self._closed:
             raise AudioPlaybackError("This guild player has already been shut down.")
+        if refresh_if_queued and (self.current is not None or len(self.queue) > 0):
+            item.refresh_before_playback = True
         return await self.queue.put(item, next_item=next_item)
 
     def _after_playback(self, error: Exception | None) -> None:
@@ -50,6 +65,7 @@ class GuildAudioPlayer:
                 continue
             self.current = item
             try:
+                await self._refresh_source(item)
                 await self._play(item)
                 if self.repeat and not self._closed:
                     await self.queue.put(item, next_item=True)
@@ -60,6 +76,14 @@ class GuildAudioPlayer:
                 if not self.repeat or self._closed:
                     await item.cleanup()
                 self.current = None
+
+    async def _refresh_source(self, item: AudioItem) -> None:
+        if not item.refresh_before_playback:
+            return
+        if self._source_refresher is None:
+            raise AudioPlaybackError("This queued source cannot be refreshed.")
+        item.source = await self._source_refresher.refresh_source(item)
+        item.refresh_before_playback = False
 
     async def _play(self, item: AudioItem) -> None:
         voice = self.voice_client

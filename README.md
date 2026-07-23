@@ -18,7 +18,8 @@ The current implementation includes:
 - a bounded guild audio queue with priority insertion for custom sounds and TTS;
 - pause, resume, skip, stop, idle disconnect, and a small button-based player panel;
 - a platform-neutral `AudioResolver` implemented with `yt-dlp`, timeouts, and no permanent music
-  downloads, with sanitized provider failures and defensive metadata mapping;
+  downloads, with sanitized provider failures, defensive metadata mapping, and playback-time
+  refresh for tracks that waited in the queue;
 - custom sound validation with extension, MIME type, size, FFprobe content, and duration checks;
 - conversion of accepted uploads to Opus files stored under guild-specific directories with UUIDs;
 - custom sound details, random playback, permission-aware renaming, and name autocomplete;
@@ -206,7 +207,9 @@ under the Security tab.
 - **Internal Opus format:** accepted uploads are converted to 96 kbps Opus, which is compact and
   appropriate for Discord voice. Physical filenames use UUIDs; logical names remain in the database.
 - **Temporary streams:** the resolver gives ephemeral public stream URLs to FFmpeg and never stores
-  third-party music permanently. DRM bypass and private authentication are out of scope.
+  third-party music permanently. Tracks that waited behind another item are re-resolved from their
+  public page immediately before playback; a failed refresh is skipped without stopping the guild
+  player. DRM bypass and private authentication are out of scope.
 - **Optional AI:** Cogs depend on `AIService`, which depends on `AIProvider`. Usage records contain
   IDs, operation names, character counts, and outcomes—not full conversation content.
 - **Initial schema:** metadata bootstrap supports local development; migration `0001` is the baseline,
@@ -217,8 +220,6 @@ under the Security tab.
 
 ## Current limitations
 
-- Stream URLs can expire before playback in very long queues; playback-time re-resolution is future
-  work.
 - There is no simultaneous mixing or automatic resume after interruption.
 - `/ai summarize`, `/ai status`, and persistent per-guild settings are not implemented yet.
 - SQLite is intended for a single local instance. Distributed deployment requires a different
