@@ -202,6 +202,9 @@ must be enabled in the repository settings for CodeQL results to appear under th
   IDs, operation names, character counts, and outcomes—not full conversation content.
 - **Initial schema:** metadata bootstrap supports local development; migration `0001` is the baseline,
   and later schema changes must use Alembic.
+- **Voice control permissions:** mutating slash commands and player buttons require the member to
+  share the bot's voice channel. Members with Move Members permission may control it from another
+  voice channel; read-only queue views remain available without joining voice.
 
 ## Current limitations
 
@@ -210,7 +213,6 @@ must be enabled in the repository settings for CodeQL results to appear under th
 - There is no simultaneous mixing or automatic resume after interruption.
 - `/sound info`, `random`, `rename`, and autocomplete are not implemented yet.
 - `/ai summarize`, `/ai status`, and persistent per-guild settings are not implemented yet.
-- The player panel needs the same hardened channel permission policy as slash commands.
 - SQLite is intended for a single local instance. Distributed deployment requires a different
   persistence and locking strategy.
 - An abrupt process termination can leave a generated file under `data/tmp`; it can be removed while

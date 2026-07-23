@@ -28,7 +28,7 @@ checks appropriate to its risk.
 - [x] Resolve temporary public streams with timeouts outside the event loop
 - [x] Implement `/music play`, `pause`, `resume`, `skip`, `stop`, and `queue`
 - [x] Implement `now`, `volume`, `remove`, `clear`, and `disconnect`
-- [ ] Harden channel-control permissions for commands and buttons
+- [x] Harden channel-control permissions for commands and buttons
 - [ ] Add persistent playlists and saved tracks
 
 ## Phase 4 — Custom sounds
