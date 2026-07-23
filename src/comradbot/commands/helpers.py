@@ -14,7 +14,9 @@ def require_guild(interaction: discord.Interaction) -> discord.Guild:
     return interaction.guild
 
 
-def user_voice_channel(interaction: discord.Interaction) -> discord.VoiceChannel | discord.StageChannel:
+def user_voice_channel(
+    interaction: discord.Interaction,
+) -> discord.VoiceChannel | discord.StageChannel:
     if not isinstance(interaction.user, discord.Member):
         raise VoiceConnectionError("Não foi possível identificar seu canal de voz.")
     voice = interaction.user.voice
