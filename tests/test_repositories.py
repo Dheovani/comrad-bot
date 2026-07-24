@@ -16,7 +16,7 @@ from comradbot.database.session import Database
 @pytest.mark.asyncio
 async def test_sound_repository_round_trip(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'test.db').as_posix()}")
-    await database.create_schema()
+    await database.migrate()
     repository = SoundRepository(database.sessions)
     sound = CustomSound(
         id="760de197-4148-4d90-8956-26017a03a889",
@@ -49,7 +49,7 @@ async def test_sound_repository_round_trip(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_ai_repository_trims_only_what_service_provides(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'ai.db').as_posix()}")
-    await database.create_schema()
+    await database.migrate()
     repository = AIRepository(database.sessions)
     messages = [AIMessage(role="user", content="oi"), AIMessage(role="assistant", content="olá")]
     try:
@@ -72,7 +72,7 @@ async def test_ai_repository_trims_only_what_service_provides(tmp_path: Path) ->
 @pytest.mark.asyncio
 async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'guild.db').as_posix()}")
-    await database.create_schema()
+    await database.migrate()
     repository = GuildSettingsRepository(database.sessions)
     try:
         assert await repository.get(123) is None
@@ -88,7 +88,7 @@ async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_playlist_repository_orders_and_renumbers_tracks(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'playlist.db').as_posix()}")
-    await database.create_schema()
+    await database.migrate()
     repository = PlaylistRepository(database.sessions)
     playlist = Playlist(guild_id=123, name="Raid", normalized_name="raid", creator_id=456)
     try:

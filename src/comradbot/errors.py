@@ -39,3 +39,7 @@ class RateLimitError(AIError):
 
 class OperationTimeoutError(ComradBotError):
     """An external or long-running operation timed out."""
+
+
+class DatabaseMigrationError(ComradBotError):
+    """The database schema cannot be migrated safely without operator action."""

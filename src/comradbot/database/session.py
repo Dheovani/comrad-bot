@@ -7,18 +7,18 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from comradbot.database.models import Base
+from comradbot.database.migrations import MigrationRunner
 
 
 class Database:
     def __init__(self, url: str) -> None:
+        self._url = url
         self.engine: AsyncEngine = create_async_engine(url)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
-    async def create_schema(self) -> None:
-        """Create the development schema idempotently; deployments use Alembic."""
-        async with self.engine.begin() as connection:
-            await connection.run_sync(Base.metadata.create_all)
+    async def migrate(self) -> None:
+        """Upgrade the database through Alembic without blocking the event loop."""
+        await MigrationRunner(self.engine, self._url).upgrade()
 
     async def close(self) -> None:
         await self.engine.dispose()

@@ -60,7 +60,7 @@ def test_normalize_playlist_name_is_stable_and_rejects_paths() -> None:
 @pytest.mark.asyncio
 async def test_playlist_lifecycle_enforces_ownership_and_limits(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'service.db').as_posix()}")
-    await database.create_schema()
+    await database.migrate()
     resolver = FakeResolver()
     service = PlaylistService(
         PlaylistRepository(database.sessions),
@@ -127,7 +127,7 @@ async def test_enqueue_playlist_skips_unavailable_and_respects_queue_capacity(
     tmp_path: Path,
 ) -> None:
     database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'enqueue.db').as_posix()}")
-    await database.create_schema()
+    await database.migrate()
     resolver = FakeResolver()
     service = PlaylistService(
         PlaylistRepository(database.sessions),

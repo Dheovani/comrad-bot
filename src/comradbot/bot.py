@@ -99,7 +99,8 @@ class ComradBot(commands.Bot):
             "Provedor de IA configurado: %s",
             self.settings.configured_ai_provider or "disabled",
         )
-        await self.database.create_schema()
+        await self.database.migrate()
+        logger.info("Migrações do banco de dados aplicadas")
         for extension in EXTENSIONS:
             await self.load_extension(extension)
             logger.info("Cog carregado: %s", extension)

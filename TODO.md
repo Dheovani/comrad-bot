@@ -10,7 +10,7 @@ checks appropriate to its risk.
 - [x] Add centralized contextual logging and global command error handling
 - [x] Initialize the bot, load Cogs, and sync development commands
 - [x] Verify `ffmpeg` and `ffprobe` during startup
-- [x] Configure async SQLite, SQLAlchemy 2, and controlled development schema bootstrap
+- [x] Configure async SQLite, SQLAlchemy 2, and controlled Alembic startup migrations
 - [x] Add Alembic configuration and an initial migration
 - [x] Add an informational `/help` command
 - [x] Route direct guild mentions through bounded AI conversations without Message Content Intent
@@ -72,7 +72,7 @@ checks appropriate to its risk.
 - [x] Add repositories so Cogs never execute SQL
 - [x] Add persistent per-guild configuration for default volume and AI availability
 - [x] Add an Alembic migration for the first post-foundation schema evolution
-- [ ] Replace development metadata bootstrap with a migration-only startup policy before deploy
+- [x] Replace development metadata bootstrap with a migration-only startup policy
 
 ## Phase 8 — Tests and observability
 
@@ -91,7 +91,8 @@ checks appropriate to its risk.
 - [x] Document local execution and minimum Discord permissions
 - [ ] Create a container image with no embedded secrets
 - [ ] Define persistent volumes for the database and custom sounds
-- [ ] Automate migrations and readiness checks
+- [x] Automate startup migrations
+- [ ] Add deployment readiness checks
 
 ## Phase 10 — Future social features
 

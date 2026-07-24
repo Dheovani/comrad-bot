@@ -25,7 +25,7 @@ The current implementation includes:
 - custom sound validation with extension, MIME type, size, FFprobe content, and duration checks;
 - conversion of accepted uploads to Opus files stored under guild-specific directories with UUIDs;
 - custom sound details, random playback, permission-aware renaming, and name autocomplete;
-- async SQLite persistence through SQLAlchemy 2 repositories and an initial Alembic migration;
+- async SQLite persistence through SQLAlchemy 2 repositories and startup Alembic migrations;
 - optional Groq and OpenAI text providers selected through configuration, plus OpenAI TTS;
 - conversational responses when the bot is directly mentioned in a guild channel;
 - opt-in recent-channel summaries and an AI configuration status command;
@@ -188,16 +188,19 @@ The equivalent installed entry point is:
 comradbot
 ```
 
-The local development schema is created idempotently at startup. On a new, empty database, the
-equivalent migration path can be verified or applied explicitly before the first bot start:
+ComradBot applies Alembic migrations to `head` during startup before loading commands. The same
+migration can be applied manually while the bot is stopped:
 
 ```bash
 alembic upgrade head
 ```
 
-Databases previously created by the development metadata bootstrap should continue using startup
-bootstrap for now; do not run the baseline migration over tables that already exist. Replacing this
-temporary development policy with migration-only startup is tracked in `TODO.md`.
+The first migration-aware startup safely adopts known local databases created by the former
+metadata bootstrap. It recognizes either the original `0001` schema or the complete current schema,
+including the known hybrid state where current tables coexist with a stale `0001` marker. It adds
+the appropriate Alembic revision and preserves existing data. An unversioned partial or modified
+schema is rejected with an actionable error instead of being changed automatically. Back up
+`data/comradbot.db` before manually repairing an inconsistent database.
 
 ## Available commands
 
@@ -329,8 +332,9 @@ under the Security tab.
   through injected async lookups.
 - **Agent documentation formatting:** Ruff excludes `AGENTS.md` from formatting because it is an
   instruction document containing illustrative snippets, not executable project code.
-- **Initial schema:** metadata bootstrap supports local development; migration `0001` is the baseline,
-  and later schema changes must use Alembic.
+- **Migration-only schema lifecycle:** startup runs Alembic outside the event loop. Empty and
+  versioned databases upgrade normally; only exact known legacy bootstrap schemas are stamped.
+  Partial or modified unversioned schemas require operator review.
 - **Voice control permissions:** mutating slash commands and player buttons require the member to
   share the bot's voice channel. Members with Move Members permission may control it from another
   voice channel; read-only queue views remain available without joining voice.
@@ -370,6 +374,9 @@ under the Security tab.
   real audio within the configured size and duration limits. Generic
   `application/octet-stream` attachments are accepted only as unknown metadata and still undergo
   full FFprobe validation before conversion.
+- **Database migration fails:** stop the bot, back up `data/comradbot.db`, and run
+  `alembic current` followed by `alembic upgrade head`. Do not delete or stamp a partial database
+  without inspecting its schema and data first.
 
 ## Contributing and security
 

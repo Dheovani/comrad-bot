@@ -10,7 +10,7 @@ from comradbot.services.settings import GuildSettingsService
 @pytest.mark.asyncio
 async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'settings.db').as_posix()}")
-    await database.create_schema()
+    await database.migrate()
     service = GuildSettingsService(
         GuildSettingsRepository(database.sessions),
         fallback_volume=0.5,
@@ -37,7 +37,7 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
 @pytest.mark.asyncio
 async def test_guild_settings_bounds_persisted_volume(tmp_path: Path) -> None:
     database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'settings.db').as_posix()}")
-    await database.create_schema()
+    await database.migrate()
     service = GuildSettingsService(
         GuildSettingsRepository(database.sessions),
         fallback_volume=0.5,
