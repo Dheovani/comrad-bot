@@ -1,107 +1,57 @@
-# ComradBot roadmap
+# ComradBot future roadmap
 
-This file tracks implemented and verified work only. Mark an item complete after it passes the
-checks appropriate to its risk.
+ComradBot 1.0.0 delivery history is recorded in [CHANGELOG.md](CHANGELOG.md). This file contains only
+unimplemented evolution opportunities. Items remain intentionally unordered until a release scope is
+selected.
 
-## Phase 1 — Project foundation
+## Audio and music evolution
 
-- [x] Create an installable `src/comradbot` package
-- [x] Add typed environment configuration and validation
-- [x] Add centralized contextual logging and global command error handling
-- [x] Initialize the bot, load Cogs, and sync development commands
-- [x] Verify `ffmpeg` and `ffprobe` during startup
-- [x] Configure async SQLite, SQLAlchemy 2, and controlled Alembic startup migrations
-- [x] Add Alembic configuration and an initial migration
-- [x] Add an informational `/help` command
-- [x] Route direct guild mentions through bounded AI conversations without Message Content Intent
+- [ ] Add repeat modes for the current track and complete queue
+- [ ] Evaluate automatic resume for interrupted seekable tracks
+- [ ] Evaluate optional simultaneous mixing with explicit resource limits
+- [ ] Add playlist reordering and playlist metadata editing
+- [ ] Evaluate platform-native playlist import without storing third-party media
+- [ ] Add resolver observability for provider failures and source-refresh latency
 
-## Phase 2 — Audio system
+## Custom sound evolution
 
-- [x] Model heterogeneous audio items and next-item priority
-- [x] Enforce one isolated player per Discord guild
-- [x] Fully test connection, volume, pause, resume, skip, stop, and cleanup transitions
-- [x] Fully test automatic inactivity disconnect
-- [x] Install the current Discord voice dependencies, including DAVE support
-- [x] Invoke FFmpeg without unsafe user-input command concatenation
-- [x] Add a basic expiring player control panel
+- [ ] Add optional categories, tags, and richer autocomplete filters
+- [ ] Add configurable per-guild sound count and storage quotas
+- [ ] Add moderator audit records for rename and deletion operations
+- [ ] Add bulk export and restore tools for guild-owned custom sounds
 
-## Phase 3 — Music
+## AI and voice evolution
 
-- [x] Define a platform-neutral source resolver abstraction
-- [x] Resolve temporary public streams with timeouts outside the event loop
-- [x] Test resolver metadata mapping, timeout, and provider error sanitization
-- [x] Implement `/music play`, `pause`, `resume`, `skip`, `stop`, and `queue`
-- [x] Implement `now`, `volume`, `remove`, `clear`, and `disconnect`
-- [x] Harden channel-control permissions for commands and buttons
-- [x] Refresh queued temporary stream URLs immediately before playback
-- [x] Test queue display truncation, ordering, and requester mapping
-- [x] Add persistent guild playlists and saved tracks with fresh source resolution
+- [ ] Add configurable conversation scope and retention policies per guild
+- [ ] Add per-guild AI budgets and usage summaries without storing prompt content
+- [ ] Evaluate additional concrete providers only when they offer a clear cost or capability benefit
+- [ ] Reassess live voice recognition when discord.py provides stable DAVE-compatible audio receive
+- [ ] Evaluate Portuguese-capable non-OpenAI TTS providers with official voices
+- [ ] Add optional AI-assisted queue and sound discovery without autonomous playback
 
-## Phase 4 — Custom sounds
+## Discord experience
 
-- [x] Add end-to-end tests for name, extension, MIME, size, content, and duration validation
-- [x] Add end-to-end tests for FFmpeg conversion to the internal format
-- [x] Store files per guild with UUIDs and safe relative paths
-- [x] Persist metadata and playback counts
-- [x] Implement `/sound upload`, `play`, `list`, and `delete`
-- [x] Implement `info`, `random`, `rename`, and autocomplete
+- [ ] Add localization infrastructure for English and Brazilian Portuguese responses
+- [ ] Expand player panels with pagination and persistent state refresh
+- [ ] Evaluate polls, event planning, game-night scheduling, and lightweight social utilities
+- [ ] Add per-guild command feature flags where operationally useful
 
-## Phase 5 — Generative AI
+## Persistence and scale
 
-- [x] Define `AIProvider` without coupling commands to a concrete SDK
-- [x] Implement an async OpenAI provider and replaceable persona
-- [x] Allow a non-empty environment persona to override the built-in prompt
-- [x] Implement a configurable Groq text provider with sanitized error mapping
-- [x] Implement bounded memory plus `/ai ask` and `/ai reset`
-- [x] Add user/guild limits, cooldown, timeout, and content-free usage metrics
-- [x] Reuse channel conversation memory for direct bot mentions
-- [x] Implement `/ai summarize` and `/ai status`
-- [x] Support explicit and backward-compatible automatic provider selection
+- [ ] Add tested PostgreSQL support before allowing multiple bot replicas
+- [ ] Add distributed coordination for guild players, rate limits, and scheduled work
+- [ ] Add automated encrypted backups and documented restoration verification
+- [ ] Define explicit data-retention and deletion controls for each persisted domain
 
-## Phase 6 — TTS and AI/voice integration
+## Operations and releases
 
-- [x] Generate short responses and speech with an official provider voice
-- [x] Queue TTS through the shared player and clean its temporary file
-- [x] Implement `/ai speak` with per-guild concurrency limits
-- [x] Document that interrupted media is not resumed in the MVP
-- [x] Implement bounded Groq speech recognition for uploaded attachments
-- [x] Evaluate live voice recognition and document the receiver/DAVE constraints
+- [ ] Publish the prepared versioned multi-platform container image through the GitHub 1.0.0 release
+- [ ] Add container vulnerability scanning and dependency update automation
+- [ ] Add changelog validation and non-container build artifacts to the release workflow
+- [ ] Add external monitoring integration for long-running hosted deployments
+- [ ] Document one supported 24/7 hosting target with persistent-volume requirements
 
-Live voice capture is deferred until discord.py exposes a stable receive API compatible with DAVE.
-This is an external compatibility watch item, not unfinished Phase 6 implementation.
+## Deliberately uncommitted ideas
 
-## Phase 7 — Persistence and guild settings
-
-- [x] Model `GuildSettings`, `CustomSound`, `AIConversation`, and `AIUsage`
-- [x] Add repositories so Cogs never execute SQL
-- [x] Add persistent per-guild configuration for default volume and AI availability
-- [x] Add an Alembic migration for the first post-foundation schema evolution
-- [x] Replace development metadata bootstrap with a migration-only startup policy
-
-## Phase 8 — Tests and observability
-
-- [x] Test queue ordering, priority, limits, removal, and cleanup
-- [x] Test sound names, metadata validation, and safe paths
-- [x] Test cooldowns, context limits, and long-response splitting
-- [x] Test repositories against disposable SQLite databases
-- [x] Expand fake-based tests for temporary file creation and failure cleanup
-- [x] Run Ruff, mypy, and pytest across the project
-- [x] Add GitHub Actions CI for Ruff, mypy, and pytest on supported Python versions
-- [x] Add scheduled and change-triggered CodeQL analysis
-- [x] Enforce branch coverage in CI and publish an inspectable coverage artifact
-- [x] Add bounded in-process runtime metrics and dependency health checks
-
-## Phase 9 — Deployment
-
-- [x] Document local execution and minimum Discord permissions
-- [x] Create a non-root container image with FFmpeg and no embedded secrets
-- [x] Define a persistent Compose volume for the database and custom sounds
-- [x] Automate startup migrations
-- [x] Add heartbeat-based container health checks and CI image builds
-
-## Phase 10 — Future social features
-
-- [ ] Research social tools appropriate for the server
-- [ ] Keep future modules decoupled from audio players and AI providers
-- [ ] Evaluate polls, events, and lightweight utilities
-- [ ] Keep economy, XP, and advanced moderation outside the current scope
+- [ ] Reassess economy or XP systems only if the server explicitly wants them
+- [ ] Keep advanced moderation outside scope unless a concrete server need emerges

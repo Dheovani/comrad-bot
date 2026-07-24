@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/Dheovani/comrad-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Dheovani/comrad-bot/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/Dheovani/comrad-bot/actions/workflows/codeql.yml/badge.svg)](https://github.com/Dheovani/comrad-bot/actions/workflows/codeql.yml)
+[![Docker Hub](https://img.shields.io/docker/v/dheovani/comradbot?label=Docker%20Hub&sort=semver)](https://hub.docker.com/r/dheovani/comradbot)
 
 ComradBot is a modular Discord bot for a private group of friends who play games together. The
 current MVP connects three vertical features: music from temporary public streams, validated custom
@@ -36,7 +37,8 @@ The current implementation includes:
 - centralized contextual logging and sanitized global command error handling;
 - deterministic tests that do not contact Discord, Groq, OpenAI, or music platforms.
 
-See [TODO.md](TODO.md) for the detailed roadmap and honest completion status.
+See [CHANGELOG.md](CHANGELOG.md) for the 1.0.0 release summary and [TODO.md](TODO.md) for future
+evolution only.
 
 ## Requirements
 
@@ -226,6 +228,41 @@ The container includes Python, application dependencies, FFmpeg, FFprobe, Alembi
 non-root runtime user. Docker Compose passes the local `.env` at runtime; credentials are not copied
 into the image.
 
+### Run the published image
+
+The versioned image is published at
+[`dheovani/comradbot`](https://hub.docker.com/r/dheovani/comradbot) for AMD64 and ARM64 Linux hosts.
+Download `.env.example` and `compose.production.yaml` from the matching
+[GitHub release](https://github.com/Dheovani/comrad-bot/releases), place them in the same directory,
+and rename `.env.example` to `.env`. After configuring at least `DISCORD_TOKEN`, start version
+1.0.0 without cloning the source repository:
+
+```bash
+docker compose -f compose.production.yaml pull
+docker compose -f compose.production.yaml up -d
+docker compose -f compose.production.yaml ps
+```
+
+Follow logs with:
+
+```bash
+docker compose -f compose.production.yaml logs -f comradbot
+```
+
+The production Compose file pins `dheovani/comradbot:1.0.0` so deployments do not change
+unexpectedly. Set `COMRADBOT_IMAGE` to select another published version:
+
+```bash
+COMRADBOT_IMAGE=dheovani/comradbot:1.0.0 docker compose -f compose.production.yaml up -d
+```
+
+Use `docker compose -f compose.production.yaml down` to stop the bot. Do not add
+`--volumes` unless the persistent database and custom sounds should be permanently deleted.
+
+### Build from source
+
+Contributors can build the current checkout with the development-oriented `compose.yaml`:
+
 1. Install and start Docker Desktop.
 2. Configure `.env` normally, including `DISCORD_TOKEN`.
 3. Build and start ComradBot from the repository root:
@@ -277,6 +314,11 @@ To rebuild after pulling a project update:
 docker compose build --pull
 docker compose up -d
 ```
+
+Published container images are built only from GitHub Releases. The release workflow derives
+immutable semantic-version tags such as `1.0.0` and `1.0`, updates `latest` for stable releases, and
+attaches OCI metadata, provenance, and an SBOM. Docker Hub credentials are stored only as the
+`DOCKER_USERNAME` Actions variable and `DOCKER_TOKEN` Actions secret.
 
 Back up the volume while the bot is stopped:
 
