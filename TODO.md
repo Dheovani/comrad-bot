@@ -66,7 +66,9 @@ checks appropriate to its risk.
 - [x] Document that interrupted media is not resumed in the MVP
 - [x] Implement bounded Groq speech recognition for uploaded attachments
 - [x] Evaluate live voice recognition and document the receiver/DAVE constraints
-- [ ] Reassess live voice capture when discord.py exposes a stable receive API
+
+Live voice capture is deferred until discord.py exposes a stable receive API compatible with DAVE.
+This is an external compatibility watch item, not unfinished Phase 6 implementation.
 
 ## Phase 7 — Persistence and guild settings
 

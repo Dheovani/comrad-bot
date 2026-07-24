@@ -143,8 +143,9 @@ Additional AI safeguards can be configured with `AI_USER_REQUESTS_PER_MINUTE`,
 `AI_GUILD_REQUESTS_PER_MINUTE`, `AI_COOLDOWN_SECONDS`, `AI_MAX_PROMPT_CHARACTERS`, and
 `AI_TIMEOUT_SECONDS`.
 
-With `AI_PROVIDER=auto`, OpenAI is selected when both provider keys exist, preserving the previous
-configuration behavior. Set the provider explicitly when more than one key is configured.
+With `AI_PROVIDER=auto`, OpenAI is selected for text and TTS when both provider keys exist,
+preserving the previous configuration behavior. When `GROQ_API_KEY` is also present, attachment
+transcription continues to use Groq independently of the selected text provider.
 
 ## Groq setup
 

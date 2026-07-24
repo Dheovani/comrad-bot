@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from comradbot.ai.groq_provider import GroqProvider
+from comradbot.ai.openai_provider import OpenAIProvider
 from comradbot.bot import build_ai_providers
 from comradbot.config import Settings
 
@@ -93,3 +94,22 @@ async def test_groq_selection_builds_text_and_recognition_provider() -> None:
     assert speech_provider is None
     assert recognition_provider is provider
     await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_openai_text_can_use_groq_recognition_independently() -> None:
+    settings = Settings(
+        _env_file=None,
+        discord_token="test",
+        ai_provider="openai",
+        openai_api_key="openai-key",
+        groq_api_key="groq-key",
+    )
+
+    provider, speech_provider, recognition_provider = build_ai_providers(settings)
+
+    assert isinstance(provider, OpenAIProvider)
+    assert speech_provider is provider
+    assert isinstance(recognition_provider, GroqProvider)
+    await provider.close()
+    await recognition_provider.close()

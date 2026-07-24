@@ -12,11 +12,21 @@ class FakeRecognitionProvider:
     def __init__(self, *, result: str = "recognized speech") -> None:
         self.result = result
         self.seen_path: Path | None = None
+        self.close_calls = 0
 
     async def transcribe_audio(self, audio: Path) -> str:
         self.seen_path = audio
         assert await asyncio.to_thread(audio.read_bytes) == b"normalized-flac"
         return self.result
+
+    async def close(self) -> None:
+        self.close_calls += 1
+
+
+class FailingRecognitionProvider(FakeRecognitionProvider):
+    async def transcribe_audio(self, audio: Path) -> str:
+        self.seen_path = audio
+        raise RuntimeError("provider failure")
 
 
 class FakeFFmpeg:
@@ -112,6 +122,47 @@ async def test_transcription_rejects_duration_and_cleans_files(tmp_path: Path) -
 
     assert await asyncio.to_thread(lambda: list(tmp_path.iterdir())) == []
     assert repository.usage[0]["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_transcription_provider_failure_is_recorded_and_cleans_files(tmp_path: Path) -> None:
+    provider = FailingRecognitionProvider()
+    repository = FakeRepository()
+    service = build_service(
+        tmp_path,
+        provider=provider,
+        ffmpeg=FakeFFmpeg(),
+        repository=repository,
+    )
+
+    with pytest.raises(RuntimeError, match="provider failure"):
+        await service.transcribe(
+            guild_id=1,
+            user_id=2,
+            filename="voice.mp3",
+            content_type="audio/mpeg",
+            data=b"source-audio",
+        )
+
+    assert provider.seen_path is not None
+    assert not provider.seen_path.exists()
+    assert await asyncio.to_thread(lambda: list(tmp_path.iterdir())) == []
+    assert repository.usage[0]["success"] is False
+
+
+@pytest.mark.asyncio
+async def test_ai_service_closes_independent_recognition_provider(tmp_path: Path) -> None:
+    provider = FakeRecognitionProvider()
+    service = build_service(
+        tmp_path,
+        provider=provider,
+        ffmpeg=FakeFFmpeg(),
+        repository=FakeRepository(),
+    )
+
+    await service.close()
+
+    assert provider.close_calls == 1
 
 
 @pytest.mark.parametrize(

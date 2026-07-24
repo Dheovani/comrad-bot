@@ -165,7 +165,8 @@ def build_ai_providers(
 ]:
     configured = settings.configured_ai_provider
     persona = resolve_comradbot_persona(settings.custom_comradbot_persona)
-    if configured == "groq" and settings.groq_api_key is not None:
+    groq_provider: GroqProvider | None = None
+    if settings.groq_api_key is not None:
         groq_provider = GroqProvider(
             api_key=settings.groq_api_key.get_secret_value(),
             model=settings.groq_model,
@@ -173,6 +174,8 @@ def build_ai_providers(
             persona=persona,
             timeout_seconds=settings.ai_timeout_seconds,
         )
+    if configured == "groq" and settings.groq_api_key is not None:
+        assert groq_provider is not None
         return groq_provider, None, groq_provider
     if configured == "openai" and settings.openai_api_key is not None:
         openai_provider = OpenAIProvider(
@@ -183,5 +186,5 @@ def build_ai_providers(
             tts_voice=settings.openai_tts_voice,
             timeout_seconds=settings.ai_timeout_seconds,
         )
-        return openai_provider, openai_provider, None
-    return None, None, None
+        return openai_provider, openai_provider, groq_provider
+    return None, None, groq_provider

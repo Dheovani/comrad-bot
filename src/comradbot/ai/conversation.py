@@ -333,8 +333,15 @@ class AIService:
             raise AIDisabledError("AI features have been disabled for this server.")
 
     async def close(self) -> None:
+        close_operations: list[Awaitable[None]] = []
         if self._provider is not None:
-            await self._provider.close()
+            close_operations.append(self._provider.close())
+        if self._recognition_provider is not None and id(self._recognition_provider) != id(
+            self._provider
+        ):
+            close_operations.append(self._recognition_provider.close())
+        if close_operations:
+            await asyncio.gather(*close_operations)
 
     async def _record(
         self,
