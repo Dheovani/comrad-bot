@@ -8,7 +8,9 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from comradbot.ai.models import AIMessage, SummaryMessage
-from comradbot.ai.provider import AIProvider, SpeechProvider
+from comradbot.ai.provider import AIProvider, SpeechProvider, SpeechRecognitionProvider
+from comradbot.ai.transcription import validate_transcription_upload
+from comradbot.audio.ffmpeg import FFmpegRunner
 from comradbot.audio.models import AudioItem, AudioItemType
 from comradbot.database.repositories.ai import AIRepository
 from comradbot.errors import AIDisabledError, RateLimitError, ValidationError
@@ -108,18 +110,31 @@ class AIService:
         max_prompt_characters: int,
         max_response_characters: int,
         temp_directory: Path,
+        recognition_provider: SpeechRecognitionProvider | None = None,
+        ffmpeg: FFmpegRunner | None = None,
+        max_transcription_size_bytes: int = 20 * 1024 * 1024,
+        max_transcription_duration_seconds: int = 300,
+        max_transcription_characters: int = 12000,
         guild_ai_enabled: GuildAIEnabledProvider | None = None,
     ) -> None:
         self._provider = provider
         self._speech_provider = speech_provider
+        self._recognition_provider = recognition_provider
         self._repository = repository
         self._limiter = limiter
         self._max_context = max_context_messages
         self._max_prompt = max_prompt_characters
         self._max_response = max_response_characters
         self._temp_directory = temp_directory
+        self._ffmpeg = ffmpeg
+        self._max_transcription_size = max_transcription_size_bytes
+        self._max_transcription_duration = max_transcription_duration_seconds
+        self._max_transcription_characters = max_transcription_characters
         self._guild_ai_enabled = guild_ai_enabled
         self._tts_locks: dict[int, asyncio.Semaphore] = defaultdict(lambda: asyncio.Semaphore(1))
+        self._transcription_locks: dict[int, asyncio.Semaphore] = defaultdict(
+            lambda: asyncio.Semaphore(1)
+        )
 
     @property
     def enabled(self) -> bool:
@@ -128,6 +143,10 @@ class AIService:
     @property
     def speech_enabled(self) -> bool:
         return self._speech_provider is not None
+
+    @property
+    def transcription_enabled(self) -> bool:
+        return self._recognition_provider is not None
 
     async def ask(self, *, guild_id: int, scope_id: int, user_id: int, prompt: str) -> str:
         provider = self._require_provider()
@@ -216,6 +235,52 @@ class AIService:
                 cleanup_path=path,
             )
 
+    async def transcribe(
+        self,
+        *,
+        guild_id: int,
+        user_id: int,
+        filename: str,
+        content_type: str | None,
+        data: bytes,
+    ) -> str:
+        provider = self._require_recognition_provider()
+        ffmpeg = self._require_ffmpeg()
+        await self._ensure_guild_ai_enabled(guild_id)
+        extension = validate_transcription_upload(
+            filename=filename,
+            content_type=content_type,
+            size_bytes=len(data),
+            max_size_bytes=self._max_transcription_size,
+        )
+        semaphore = self._transcription_locks[guild_id]
+        if semaphore.locked():
+            raise RateLimitError("A transcription is already running in this server.")
+        await self._limiter.acquire(guild_id, user_id)
+        async with semaphore:
+            self._temp_directory.mkdir(parents=True, exist_ok=True)
+            source = await self._write_temporary(data, extension)
+            destination = await self._empty_temporary(".flac")
+            try:
+                info = await ffmpeg.probe(source)
+                if info.duration_seconds > self._max_transcription_duration:
+                    raise ValidationError(
+                        "The attachment exceeds the configured transcription duration limit."
+                    )
+                await ffmpeg.convert_to_speech_flac(source, destination)
+                text = await provider.transcribe_audio(destination)
+                bounded = text[: self._max_transcription_characters].rstrip()
+                await self._record(guild_id, user_id, "transcribe", 0, len(bounded), True)
+                return bounded
+            except Exception:
+                await self._record(guild_id, user_id, "transcribe", 0, 0, False)
+                raise
+            finally:
+                await asyncio.gather(
+                    asyncio.to_thread(source.unlink, missing_ok=True),
+                    asyncio.to_thread(destination.unlink, missing_ok=True),
+                )
+
     def _require_provider(self) -> AIProvider:
         if self._provider is None:
             raise AIDisabledError(
@@ -230,6 +295,38 @@ class AIService:
                 "Configure a OpenAI para usar /ai speak."
             )
         return self._speech_provider
+
+    def _require_recognition_provider(self) -> SpeechRecognitionProvider:
+        if self._recognition_provider is None:
+            raise AIDisabledError(
+                "Speech recognition is unavailable. Configure Groq as the AI provider."
+            )
+        return self._recognition_provider
+
+    def _require_ffmpeg(self) -> FFmpegRunner:
+        if self._ffmpeg is None:
+            raise AIDisabledError("Speech recognition media processing is unavailable.")
+        return self._ffmpeg
+
+    async def _write_temporary(self, data: bytes, suffix: str) -> Path:
+        path = await self._empty_temporary(suffix)
+        try:
+            await asyncio.to_thread(path.write_bytes, data)
+        except BaseException:
+            await asyncio.to_thread(path.unlink, missing_ok=True)
+            raise
+        return path
+
+    async def _empty_temporary(self, suffix: str) -> Path:
+        return await asyncio.to_thread(self._empty_temporary_sync, suffix)
+
+    def _empty_temporary_sync(self, suffix: str) -> Path:
+        with NamedTemporaryFile(
+            suffix=suffix,
+            dir=self._temp_directory,
+            delete=False,
+        ) as temporary:
+            return Path(temporary.name)
 
     async def _ensure_guild_ai_enabled(self, guild_id: int) -> None:
         if self._guild_ai_enabled is not None and not await self._guild_ai_enabled(guild_id):

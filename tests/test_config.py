@@ -79,7 +79,7 @@ def test_custom_multiline_persona_loads_from_dotenv(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_groq_selection_builds_text_only_provider() -> None:
+async def test_groq_selection_builds_text_and_recognition_provider() -> None:
     settings = Settings(
         _env_file=None,
         discord_token="test",
@@ -87,8 +87,9 @@ async def test_groq_selection_builds_text_only_provider() -> None:
         groq_api_key="groq-key",
     )
 
-    provider, speech_provider = build_ai_providers(settings)
+    provider, speech_provider, recognition_provider = build_ai_providers(settings)
 
     assert isinstance(provider, GroqProvider)
     assert speech_provider is None
+    assert recognition_provider is provider
     await provider.close()

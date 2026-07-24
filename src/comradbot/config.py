@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     openai_tts_voice: str = "coral"
     groq_api_key: SecretStr | None = None
     groq_model: str = "llama-3.3-70b-versatile"
+    groq_transcription_model: Literal["whisper-large-v3", "whisper-large-v3-turbo"] = (
+        "whisper-large-v3-turbo"
+    )
     custom_comradbot_persona: str | None = Field(default=None, max_length=20000)
 
     data_directory: Path = Path("./data")
@@ -47,6 +50,9 @@ class Settings(BaseSettings):
     max_sound_duration_seconds: int = Field(default=30, ge=1, le=600)
     max_ai_context_messages: int = Field(default=30, ge=1, le=100)
     max_ai_response_characters: int = Field(default=1800, ge=200, le=2000)
+    max_transcription_file_size_mb: int = Field(default=20, ge=1, le=25)
+    max_transcription_duration_seconds: int = Field(default=300, ge=1, le=3600)
+    max_transcription_characters: int = Field(default=12000, ge=200, le=50000)
     audio_idle_timeout_seconds: int = Field(default=300, ge=30, le=3600)
 
     ai_user_requests_per_minute: int = Field(default=3, ge=1, le=60)

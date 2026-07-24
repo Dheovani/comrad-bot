@@ -17,3 +17,7 @@ class AIProvider(Protocol):
 
 class SpeechProvider(Protocol):
     async def generate_speech(self, text: str, destination: Path) -> None: ...
+
+
+class SpeechRecognitionProvider(Protocol):
+    async def transcribe_audio(self, audio: Path) -> str: ...

@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import AsyncMock
@@ -11,15 +12,24 @@ from comradbot.ai.models import AIMessage
 from comradbot.errors import OperationTimeoutError, RateLimitError
 
 
-def fake_provider(create: AsyncMock, *, persona: str = "Custom comrade persona") -> GroqProvider:
+def fake_provider(
+    create: AsyncMock,
+    *,
+    transcription_create: AsyncMock | None = None,
+    persona: str = "Custom comrade persona",
+) -> GroqProvider:
     provider = GroqProvider(
         api_key="test-key",
         model="test-model",
+        transcription_model="whisper-large-v3-turbo",
         persona=persona,
         timeout_seconds=1,
     )
     client = SimpleNamespace(
         chat=SimpleNamespace(completions=SimpleNamespace(create=create)),
+        audio=SimpleNamespace(
+            transcriptions=SimpleNamespace(create=transcription_create or AsyncMock())
+        ),
         close=AsyncMock(),
     )
     cast(Any, provider)._client = client
@@ -81,3 +91,19 @@ async def test_groq_provider_maps_sdk_timeout() -> None:
             [AIMessage(role="user", content="olá")],
             max_characters=100,
         )
+
+
+@pytest.mark.asyncio
+async def test_groq_provider_transcribes_normalized_audio(tmp_path: Path) -> None:
+    transcription_create = AsyncMock(return_value=SimpleNamespace(text="  hello comrades  "))
+    provider = fake_provider(AsyncMock(), transcription_create=transcription_create)
+    audio = tmp_path / "speech.flac"
+    audio.write_bytes(b"normalized-audio")
+
+    result = await provider.transcribe_audio(audio)
+
+    assert result == "hello comrades"
+    request = transcription_create.await_args.kwargs
+    assert request["model"] == "whisper-large-v3-turbo"
+    assert request["file"] == ("speech.flac", b"normalized-audio", "audio/flac")
+    assert request["response_format"] == "json"

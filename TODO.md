@@ -64,7 +64,9 @@ checks appropriate to its risk.
 - [x] Queue TTS through the shared player and clean its temporary file
 - [x] Implement `/ai speak` with per-guild concurrency limits
 - [x] Document that interrupted media is not resumed in the MVP
-- [ ] Evaluate future speech recognition without voice cloning
+- [x] Implement bounded Groq speech recognition for uploaded attachments
+- [x] Evaluate live voice recognition and document the receiver/DAVE constraints
+- [ ] Reassess live voice capture when discord.py exposes a stable receive API
 
 ## Phase 7 — Persistence and guild settings
 

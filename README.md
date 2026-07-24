@@ -29,6 +29,7 @@ The current implementation includes:
 - optional Groq and OpenAI text providers selected through configuration, plus OpenAI TTS;
 - conversational responses when the bot is directly mentioned in a guild channel;
 - opt-in recent-channel summaries and an AI configuration status command;
+- bounded Groq speech recognition for validated audio and video attachments;
 - persistent per-server default volume and AI availability settings;
 - bounded AI memory, local user/guild rate limits, cooldowns, timeouts, and metadata-only usage logs;
 - centralized contextual logging and sanitized global command error handling;
@@ -114,8 +115,9 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DISCORD_MESSAGE_CONTENT_INTENT` | No | `false`; opt in to message access for `/ai summarize` |
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///./data/comradbot.db` |
 | `AI_PROVIDER` | No | `auto`; accepts `auto`, `groq`, or `openai` |
-| `GROQ_API_KEY` | No | Enables Groq text conversations |
+| `GROQ_API_KEY` | No | Enables Groq text conversations and attachment transcription |
 | `GROQ_MODEL` | No | `llama-3.3-70b-versatile` |
+| `GROQ_TRANSCRIPTION_MODEL` | No | `whisper-large-v3-turbo` |
 | `OPENAI_API_KEY` | No | Enables OpenAI text responses and TTS |
 | `OPENAI_MODEL` | No | `gpt-4.1-mini` |
 | `OPENAI_TTS_MODEL` | No | `gpt-4o-mini-tts` |
@@ -131,6 +133,9 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `MAX_SOUND_DURATION_SECONDS` | No | `30` |
 | `MAX_AI_CONTEXT_MESSAGES` | No | `30` |
 | `MAX_AI_RESPONSE_CHARACTERS` | No | `1800` |
+| `MAX_TRANSCRIPTION_FILE_SIZE_MB` | No | `20`; cannot exceed Groq's 25 MB free-tier limit |
+| `MAX_TRANSCRIPTION_DURATION_SECONDS` | No | `300` |
+| `MAX_TRANSCRIPTION_CHARACTERS` | No | `12000` |
 | `AUDIO_IDLE_TIMEOUT_SECONDS` | No | `300` |
 | `LOG_LEVEL` | No | `INFO` |
 
@@ -156,6 +161,7 @@ available models may change, so ComradBot treats quota failures as recoverable e
    AI_PROVIDER=groq
    GROQ_API_KEY=gsk_your_key_here
    GROQ_MODEL=llama-3.3-70b-versatile
+   GROQ_TRANSCRIPTION_MODEL=whisper-large-v3-turbo
    ```
 
 5. Keep `OPENAI_API_KEY` empty when OpenAI should not be used.
@@ -234,6 +240,7 @@ schema is rejected with an actionable error instead of being changed automatical
 - `/ai ask prompt:<text>`
 - `/ai reset`
 - `/ai summarize count:<number>`
+- `/ai transcribe file:<attachment>`
 - `/ai speak prompt:<text>`
 - `/ai status`
 - `/settings show`
@@ -253,6 +260,12 @@ a larger count is requested. It ignores attachments, does not add the transcript
 channel's AI conversation memory, and applies the same local rate limits as `/ai ask`. `/ai status`
 is ephemeral and reports provider availability, TTS availability, summary access, and local limits
 without making an API request or displaying secrets.
+
+`/ai transcribe` accepts FLAC, MP3, MP4, M4A, OGG, WAV, and WebM attachments. ComradBot checks the
+declared size and MIME type, verifies the real media stream and duration with FFprobe, normalizes
+speech to temporary mono 16 kHz FLAC, and sends only that temporary audio to Groq. The source and
+normalized files are deleted after success or failure. Transcription shares the configured local AI
+rate limits and permits only one active transcription per guild.
 
 Members with Manage Server permission can use `/settings`. The default volume is applied whenever a
 guild player is created; changing it also updates an active player immediately. Disabling AI blocks
@@ -323,13 +336,19 @@ under the Security tab.
   playback resolves each reference again and reports tracks that are unavailable or do not fit in
   the current queue.
 - **Optional AI providers:** Cogs and mention listeners depend on `AIService`, not a concrete SDK.
-  Groq uses its official asynchronous SDK for text; OpenAI supports text and Portuguese TTS. Usage
+  Groq uses its official asynchronous SDK for text and attachment transcription; OpenAI supports
+  text and Portuguese TTS. Usage
   records contain IDs, operation names, character counts, and outcomes—not full conversation
   content. Channel summaries fetch a bounded history only on demand and are not added to persistent
   conversation memory.
 - **Persistent guild preferences:** `GuildSettingsService` is the only business-facing access point
   for server configuration. Discord commands do not execute SQL, and audio/AI consume the settings
   through injected async lookups.
+- **Speech recognition boundary:** the initial implementation transcribes explicit attachments
+  through Groq Whisper after local FFmpeg validation. It does not listen to voice channels. Live
+  capture remains deferred because discord.py does not expose a stable receive API compatible with
+  Discord's current DAVE voice protocol; it should be reassessed rather than built on an unmaintained
+  receiver extension.
 - **Agent documentation formatting:** Ruff excludes `AGENTS.md` from formatting because it is an
   instruction document containing illustrative snippets, not executable project code.
 - **Migration-only schema lifecycle:** startup runs Alembic outside the event loop. Empty and
@@ -345,6 +364,8 @@ under the Security tab.
 - Playlist playback resolves tracks sequentially and does not import platform-native playlists.
 - Groq mode supports text conversations but not `/ai speak`; its hosted TTS models do not support
   Portuguese.
+- Speech recognition works only with explicit attachments; the bot does not record or monitor voice
+  channels. Groq free-plan quotas and the configured local limits still apply.
 - SQLite is intended for a single local instance. Distributed deployment requires a different
   persistence and locking strategy.
 - An abrupt process termination can leave a generated file under `data/tmp`; it can be removed while
@@ -370,6 +391,8 @@ under the Security tab.
   the bot.
 - **Groq returns a quota error:** the free plan is rate-limited. Wait for the reported quota window
   to reset and keep the local AI limits enabled.
+- **Transcription is unavailable:** select Groq with `AI_PROVIDER=groq`, configure `GROQ_API_KEY`,
+  restart the bot, and verify that the attachment is within the configured size and duration limits.
 - **An upload is rejected:** extension and MIME type are only initial checks; FFprobe must also detect
   real audio within the configured size and duration limits. Generic
   `application/octet-stream` attachments are accepted only as unknown metadata and still undergo

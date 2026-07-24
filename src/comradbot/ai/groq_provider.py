@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import Sequence
+from pathlib import Path
 
 import groq
 from groq import AsyncGroq
@@ -22,6 +23,7 @@ class GroqProvider:
         *,
         api_key: str,
         model: str,
+        transcription_model: str,
         persona: str,
         timeout_seconds: float,
     ) -> None:
@@ -31,6 +33,7 @@ class GroqProvider:
             max_retries=1,
         )
         self._model = model
+        self._transcription_model = transcription_model
         self._persona = persona
         self._timeout_seconds = timeout_seconds
 
@@ -80,6 +83,31 @@ class GroqProvider:
         if not content or not content.strip():
             raise AIError("A Groq retornou uma resposta vazia.")
         return content.strip()[:max_characters]
+
+    async def transcribe_audio(self, audio: Path) -> str:
+        payload = await asyncio.to_thread(audio.read_bytes)
+        try:
+            transcription = await asyncio.wait_for(
+                self._client.audio.transcriptions.create(
+                    model=self._transcription_model,
+                    file=(audio.name, payload, "audio/flac"),
+                    response_format="json",
+                ),
+                timeout=self._timeout_seconds,
+            )
+        except (TimeoutError, groq.APITimeoutError) as exc:
+            raise OperationTimeoutError("Groq speech recognition timed out.") from exc
+        except groq.RateLimitError as exc:
+            raise RateLimitError(
+                "The Groq speech recognition limit was reached. Try again later."
+            ) from exc
+        except groq.APIError as exc:
+            raise AIError("Groq could not transcribe the audio.") from exc
+
+        text = transcription.text.strip()
+        if not text:
+            raise AIError("Groq returned an empty transcription.")
+        return text
 
     async def close(self) -> None:
         await self._client.close()

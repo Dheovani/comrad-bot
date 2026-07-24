@@ -141,6 +141,15 @@ class AICog(commands.Cog):
             inline=True,
         )
         embed.add_field(
+            name="Speech recognition",
+            value=(
+                "Available for attachments"
+                if guild_settings.ai_enabled and self.bot.ai_service.transcription_enabled
+                else "Unavailable"
+            ),
+            inline=True,
+        )
+        embed.add_field(
             name="Channel summaries",
             value=summary_status,
             inline=False,
@@ -157,6 +166,46 @@ class AICog(commands.Cog):
         )
         embed.set_footer(text="No API keys or conversation content are displayed.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @ai.command(name="transcribe", description="Transcribe a supported audio attachment.")
+    @app_commands.describe(file="Audio or video file containing speech.")
+    async def transcribe(
+        self,
+        interaction: discord.Interaction,
+        file: discord.Attachment,
+    ) -> None:
+        guild = require_guild(interaction)
+        max_size = self.bot.settings.max_transcription_file_size_mb * 1024 * 1024
+        if file.size > max_size:
+            raise ValidationError(
+                f"The attachment exceeds the {self.bot.settings.max_transcription_file_size_mb} MB "
+                "transcription limit."
+            )
+        await interaction.response.defer(thinking=True)
+        data = await file.read()
+        transcript = await self.bot.ai_service.transcribe(
+            guild_id=guild.id,
+            user_id=interaction.user.id,
+            filename=file.filename,
+            content_type=file.content_type,
+            data=data,
+        )
+        chunks = split_message(transcript, self.bot.settings.max_ai_response_characters)
+        embed = discord.Embed(
+            title="Speech transcription",
+            description=chunks[0],
+            color=0xD13C3C,
+        )
+        embed.set_footer(text="Generated from the attached media by Groq speech recognition")
+        await interaction.followup.send(
+            embed=embed,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+        for chunk in chunks[1:]:
+            await interaction.followup.send(
+                chunk,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
 
     @ai.command(name="speak", description="Gera uma resposta curta e a reproduz no canal de voz.")
     async def speak(self, interaction: discord.Interaction, prompt: str) -> None:

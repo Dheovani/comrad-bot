@@ -76,6 +76,27 @@ class FFmpegRunner:
         return MediaInfo(duration_seconds=duration, format_name=format_name, has_audio=has_audio)
 
     async def convert_to_opus(self, source: Path, destination: Path) -> None:
+        await self._convert(
+            source,
+            destination,
+            codec_arguments=("-c:a", "libopus", "-b:a", "96k"),
+        )
+
+    async def convert_to_speech_flac(self, source: Path, destination: Path) -> None:
+        """Normalize speech input for compact, provider-compatible transcription."""
+        await self._convert(
+            source,
+            destination,
+            codec_arguments=("-ac", "1", "-ar", "16000", "-c:a", "flac"),
+        )
+
+    async def _convert(
+        self,
+        source: Path,
+        destination: Path,
+        *,
+        codec_arguments: tuple[str, ...],
+    ) -> None:
         ffmpeg, _ = self.verify_tools()
         process = await asyncio.create_subprocess_exec(
             ffmpeg,
@@ -88,10 +109,7 @@ class FFmpegRunner:
             "-vn",
             "-map_metadata",
             "-1",
-            "-c:a",
-            "libopus",
-            "-b:a",
-            "96k",
+            *codec_arguments,
             "-y",
             str(destination),
             stdout=asyncio.subprocess.DEVNULL,

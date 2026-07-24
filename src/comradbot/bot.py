@@ -10,7 +10,7 @@ from comradbot.ai.conversation import AIService, SlidingWindowLimiter
 from comradbot.ai.groq_provider import GroqProvider
 from comradbot.ai.openai_provider import OpenAIProvider
 from comradbot.ai.prompts import resolve_comradbot_persona
-from comradbot.ai.provider import AIProvider, SpeechProvider
+from comradbot.ai.provider import AIProvider, SpeechProvider, SpeechRecognitionProvider
 from comradbot.audio.ffmpeg import FFmpegRunner
 from comradbot.audio.manager import GuildAudioManager
 from comradbot.audio.resolver import YtDlpAudioResolver
@@ -73,20 +73,26 @@ class ComradBot(commands.Bot):
             max_duration_seconds=settings.max_sound_duration_seconds,
         )
         ai_repository = AIRepository(self.database.sessions)
-        provider, speech_provider = build_ai_providers(settings)
+        provider, speech_provider, recognition_provider = build_ai_providers(settings)
+        ai_limiter = SlidingWindowLimiter(
+            user_limit=settings.ai_user_requests_per_minute,
+            guild_limit=settings.ai_guild_requests_per_minute,
+            cooldown_seconds=settings.ai_cooldown_seconds,
+        )
         self.ai_service = AIService(
             provider,
             speech_provider,
             ai_repository,
-            SlidingWindowLimiter(
-                user_limit=settings.ai_user_requests_per_minute,
-                guild_limit=settings.ai_guild_requests_per_minute,
-                cooldown_seconds=settings.ai_cooldown_seconds,
-            ),
+            ai_limiter,
             max_context_messages=settings.max_ai_context_messages,
             max_prompt_characters=settings.ai_max_prompt_characters,
             max_response_characters=settings.max_ai_response_characters,
             temp_directory=settings.data_directory / "tmp",
+            recognition_provider=recognition_provider,
+            ffmpeg=self.ffmpeg,
+            max_transcription_size_bytes=settings.max_transcription_file_size_mb * 1024 * 1024,
+            max_transcription_duration_seconds=settings.max_transcription_duration_seconds,
+            max_transcription_characters=settings.max_transcription_characters,
             guild_ai_enabled=self.guild_settings_service.ai_enabled_for,
         )
         self.tree.error(self.on_app_command_error)
@@ -152,21 +158,24 @@ class ComradBot(commands.Bot):
 
 def build_ai_providers(
     settings: Settings,
-) -> tuple[AIProvider | None, SpeechProvider | None]:
+) -> tuple[
+    AIProvider | None,
+    SpeechProvider | None,
+    SpeechRecognitionProvider | None,
+]:
     configured = settings.configured_ai_provider
     persona = resolve_comradbot_persona(settings.custom_comradbot_persona)
     if configured == "groq" and settings.groq_api_key is not None:
-        return (
-            GroqProvider(
-                api_key=settings.groq_api_key.get_secret_value(),
-                model=settings.groq_model,
-                persona=persona,
-                timeout_seconds=settings.ai_timeout_seconds,
-            ),
-            None,
+        groq_provider = GroqProvider(
+            api_key=settings.groq_api_key.get_secret_value(),
+            model=settings.groq_model,
+            transcription_model=settings.groq_transcription_model,
+            persona=persona,
+            timeout_seconds=settings.ai_timeout_seconds,
         )
+        return groq_provider, None, groq_provider
     if configured == "openai" and settings.openai_api_key is not None:
-        provider = OpenAIProvider(
+        openai_provider = OpenAIProvider(
             api_key=settings.openai_api_key.get_secret_value(),
             model=settings.openai_model,
             persona=persona,
@@ -174,5 +183,5 @@ def build_ai_providers(
             tts_voice=settings.openai_tts_voice,
             timeout_seconds=settings.ai_timeout_seconds,
         )
-        return provider, provider
-    return None, None
+        return openai_provider, openai_provider, None
+    return None, None, None

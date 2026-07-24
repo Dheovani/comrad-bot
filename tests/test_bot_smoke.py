@@ -48,6 +48,7 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "speak",
             "status",
             "summarize",
+            "transcribe",
         }
         music = bot.tree.get_command("music")
         assert isinstance(music, app_commands.Group)
