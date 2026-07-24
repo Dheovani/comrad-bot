@@ -21,6 +21,7 @@ from comradbot.database.repositories.guild_settings import GuildSettingsReposito
 from comradbot.database.session import Database
 from comradbot.errors import ComradBotError, PermissionDeniedError
 from comradbot.logging import log_context
+from comradbot.services.heartbeat import HeartbeatService
 from comradbot.services.music import PlaylistService
 from comradbot.services.observability import ObservabilityService
 from comradbot.services.settings import GuildSettingsService
@@ -46,7 +47,15 @@ class ComradBot(commands.Bot):
         intents.message_content = settings.discord_message_content_intent
         super().__init__(command_prefix=commands.when_mentioned, intents=intents)
         self.settings = settings
-        self.database = Database(settings.database_url)
+        self.database = Database(
+            settings.database_url,
+            alembic_config_file=settings.alembic_config_file,
+            alembic_directory=settings.alembic_directory,
+        )
+        self.heartbeat = HeartbeatService(
+            settings.healthcheck_heartbeat_file,
+            interval_seconds=settings.heartbeat_interval_seconds,
+        )
         self.guild_settings_service = GuildSettingsService(
             GuildSettingsRepository(self.database.sessions),
             fallback_volume=settings.default_volume,
@@ -132,9 +141,11 @@ class ComradBot(commands.Bot):
             )
 
     async def on_ready(self) -> None:
+        await self.heartbeat.start()
         logger.info("ComradBot conectado como %s", self.user)
 
     async def close(self) -> None:
+        await self.heartbeat.close()
         await self.audio_manager.close()
         await self.ai_service.close()
         await self.database.close()

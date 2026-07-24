@@ -31,10 +31,18 @@ class SchemaState:
 
 
 class MigrationRunner:
-    def __init__(self, engine: AsyncEngine, database_url: str) -> None:
+    def __init__(
+        self,
+        engine: AsyncEngine,
+        database_url: str,
+        *,
+        config_file: Path = Path("./alembic.ini"),
+        script_directory: Path = Path("./alembic"),
+    ) -> None:
         self._engine = engine
         self._database_url = database_url
-        self._root = Path(__file__).resolve().parents[3]
+        self._config_file = config_file.resolve()
+        self._script_directory = script_directory.resolve()
 
     async def upgrade(self) -> None:
         state = await self._inspect_schema()
@@ -103,8 +111,8 @@ class MigrationRunner:
                 )
 
     def _config(self) -> Config:
-        config = Config(self._root / "alembic.ini")
-        config.set_main_option("script_location", str(self._root / "alembic"))
+        config = Config(self._config_file)
+        config.set_main_option("script_location", str(self._script_directory))
         config.set_main_option("sqlalchemy.url", self._database_url.replace("%", "%%"))
         config.attributes["configure_logger"] = False
         return config

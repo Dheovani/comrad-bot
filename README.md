@@ -47,6 +47,9 @@ See [TODO.md](TODO.md) for the detailed roadmap and honest completion status.
 - Windows with Git Bash for the commands below. Linux and macOS work with the usual virtualenv
   activation command.
 
+Docker Desktop is an alternative to installing Python and FFmpeg directly. It is required only for
+the container workflow described below.
+
 Runtime and development dependencies are declared in `pyproject.toml`. The project remains
 compatible with `pip install -e .` and does not require Poetry. Discord voice dependencies,
 including PyNaCl and the DAVE protocol backend, are installed through the official
@@ -115,6 +118,8 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DISCORD_RESPOND_TO_MENTIONS` | No | `true`; send direct mentions to the configured AI |
 | `DISCORD_MESSAGE_CONTENT_INTENT` | No | `false`; opt in to message access for `/ai summarize` |
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///./data/comradbot.db` |
+| `ALEMBIC_CONFIG_FILE` | No | `./alembic.ini`; overridden to `/app/alembic.ini` in Docker |
+| `ALEMBIC_DIRECTORY` | No | `./alembic`; overridden to `/app/alembic` in Docker |
 | `AI_PROVIDER` | No | `auto`; accepts `auto`, `groq`, or `openai` |
 | `GROQ_API_KEY` | No | Enables Groq text conversations and attachment transcription |
 | `GROQ_MODEL` | No | `llama-3.3-70b-versatile` |
@@ -126,6 +131,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `CUSTOM_COMRADBOT_PERSONA` | No | Replaces the built-in persona when non-empty |
 | `DATA_DIRECTORY` | No | `./data` |
 | `SOUNDS_DIRECTORY` | No | `./data/sounds` |
+| `HEALTHCHECK_HEARTBEAT_FILE` | No | `./data/.heartbeat` |
 | `DEFAULT_VOLUME` | No | `0.5`, fallback for servers without a persisted preference |
 | `MAX_QUEUE_SIZE` | No | `100` |
 | `MAX_PLAYLISTS_PER_GUILD` | No | `25` |
@@ -143,6 +149,10 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 Additional AI safeguards can be configured with `AI_USER_REQUESTS_PER_MINUTE`,
 `AI_GUILD_REQUESTS_PER_MINUTE`, `AI_COOLDOWN_SECONDS`, `AI_MAX_PROMPT_CHARACTERS`, and
 `AI_TIMEOUT_SECONDS`.
+
+Container liveness timing can be adjusted with `HEARTBEAT_INTERVAL_SECONDS` and
+`HEALTHCHECK_MAX_AGE_SECONDS`. The maximum age should remain comfortably greater than the update
+interval.
 
 With `AI_PROVIDER=auto`, OpenAI is selected for text and TTS when both provider keys exist,
 preserving the previous configuration behavior. When `GROQ_API_KEY` is also present, attachment
@@ -209,6 +219,76 @@ including the known hybrid state where current tables coexist with a stale `0001
 the appropriate Alembic revision and preserves existing data. An unversioned partial or modified
 schema is rejected with an actionable error instead of being changed automatically. Back up
 `data/comradbot.db` before manually repairing an inconsistent database.
+
+## Running with Docker
+
+The container includes Python, application dependencies, FFmpeg, FFprobe, Alembic migrations, and a
+non-root runtime user. Docker Compose passes the local `.env` at runtime; credentials are not copied
+into the image.
+
+1. Install and start Docker Desktop.
+2. Configure `.env` normally, including `DISCORD_TOKEN`.
+3. Build and start ComradBot from the repository root:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+4. Follow startup and migration logs:
+
+   ```bash
+   docker compose logs -f comradbot
+   ```
+
+5. Inspect container and health status:
+
+   ```bash
+   docker compose ps
+   ```
+
+6. Stop the bot without deleting its data:
+
+   ```bash
+   docker compose down
+   ```
+
+The named volume `comradbot-data` stores SQLite, custom sounds, and runtime data under `/app/data`.
+`docker compose down` preserves it; `docker compose down --volumes` deletes it and must not be used
+unless permanent data removal is intended.
+
+The named volume starts empty. To import an existing local `data/` directory before the first
+container start, build the image and copy the data as the container's runtime UID:
+
+```bash
+docker compose build
+docker run --rm --user root \
+  -v comradbot-data:/target \
+  -v "${PWD}/data:/source:ro" \
+  comradbot:local \
+  sh -c "cp -a /source/. /target/ && chown -R 10001:10001 /target"
+```
+
+Back up the local directory and ensure no host bot process is using its SQLite database during the
+copy.
+
+To rebuild after pulling a project update:
+
+```bash
+docker compose build --pull
+docker compose up -d
+```
+
+Back up the volume while the bot is stopped:
+
+```bash
+docker compose down
+docker run --rm -v comradbot-data:/data -v "${PWD}:/backup" alpine \
+  tar czf /backup/comradbot-data.tar.gz -C /data .
+```
+
+Treat the archive as sensitive because it contains server configuration and AI conversation
+context. Test restoration procedures before relying on a backup. SQLite supports only one running
+ComradBot instance with this volume; do not scale the Compose service beyond one replica.
 
 ## Available commands
 
@@ -323,6 +403,8 @@ CodeQL workflow analyzes Python changes on pull requests, pushes to `main`, manu
 schedule. Code scanning must be enabled in the repository settings for CodeQL results to appear
 under the Security tab. To prevent merging a failing pull request, configure a GitHub branch
 ruleset for `main` that requires the `Python 3.12` and `Python 3.13` status checks.
+The CI also builds the non-root container image and smoke-tests Python, package imports, FFmpeg, and
+FFprobe without publishing the image or using real credentials.
 
 ## Technical decisions
 
@@ -352,6 +434,12 @@ ruleset for `main` that requires the `Python 3.12` and `Python 3.13` status chec
 - **Persistent guild preferences:** `GuildSettingsService` is the only business-facing access point
   for server configuration. Discord commands do not execute SQL, and audio/AI consume the settings
   through injected async lookups.
+- **Container liveness without a web server:** the connected bot updates a heartbeat under the data
+  volume. Docker checks heartbeat freshness, SQLite, FFmpeg, and FFprobe without contacting Discord
+  or an AI provider. Shutdown waits for pending writes before deleting the heartbeat.
+- **Single-instance persistence:** Compose uses a named volume and SQLite for a simple private-server
+  deployment. Multiple bot replicas are unsupported until persistence and distributed locks move to
+  infrastructure designed for concurrent instances.
 - **Local observability:** `/health` checks the Discord connection, SQLite, FFmpeg, and FFprobe, then
   reports non-sensitive uptime, latency, active-player, and slash-command counters. Counters are
   bounded integers held in process memory and reset on restart; the command does not expose paths,
@@ -412,6 +500,9 @@ ruleset for `main` that requires the `Python 3.12` and `Python 3.13` status chec
 - **Database migration fails:** stop the bot, back up `data/comradbot.db`, and run
   `alembic current` followed by `alembic upgrade head`. Do not delete or stamp a partial database
   without inspecting its schema and data first.
+- **Container is unhealthy:** run `docker compose ps` and `docker compose logs comradbot`. Confirm
+  that `/app/data` is writable, startup migrations completed, and the bot reached Discord before the
+  health-check start period expired.
 - **`/health` is degraded:** inspect which dependency is unavailable. Verify the Discord connection,
   FFmpeg/FFprobe on `PATH`, and SQLite file permissions before restarting the bot.
 - **Many tests fail with `PermissionError` under `%TEMP%\pytest-of-<user>`:** the configured suite

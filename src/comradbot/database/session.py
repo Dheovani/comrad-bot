@@ -1,5 +1,6 @@
 """Async database engine and session lifecycle."""
 
+from pathlib import Path
 from typing import cast
 
 from sqlalchemy import text
@@ -14,14 +15,27 @@ from comradbot.database.migrations import MigrationRunner
 
 
 class Database:
-    def __init__(self, url: str) -> None:
+    def __init__(
+        self,
+        url: str,
+        *,
+        alembic_config_file: Path = Path("./alembic.ini"),
+        alembic_directory: Path = Path("./alembic"),
+    ) -> None:
         self._url = url
+        self._alembic_config_file = alembic_config_file
+        self._alembic_directory = alembic_directory
         self.engine: AsyncEngine = create_async_engine(url)
         self.sessions = async_sessionmaker(self.engine, expire_on_commit=False)
 
     async def migrate(self) -> None:
         """Upgrade the database through Alembic without blocking the event loop."""
-        await MigrationRunner(self.engine, self._url).upgrade()
+        await MigrationRunner(
+            self.engine,
+            self._url,
+            config_file=self._alembic_config_file,
+            script_directory=self._alembic_directory,
+        ).upgrade()
 
     async def close(self) -> None:
         await self.engine.dispose()

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     discord_message_content_intent: bool = False
 
     database_url: str = "sqlite+aiosqlite:///./data/comradbot.db"
+    alembic_config_file: Path = Path("./alembic.ini")
+    alembic_directory: Path = Path("./alembic")
 
     ai_provider: Literal["auto", "openai", "groq"] = "auto"
     openai_api_key: SecretStr | None = None
@@ -41,6 +43,7 @@ class Settings(BaseSettings):
 
     data_directory: Path = Path("./data")
     sounds_directory: Path = Path("./data/sounds")
+    healthcheck_heartbeat_file: Path = Path("./data/.heartbeat")
 
     default_volume: float = Field(default=0.5, ge=0.0, le=1.0)
     max_queue_size: int = Field(default=100, ge=1, le=1000)
@@ -61,6 +64,8 @@ class Settings(BaseSettings):
     ai_max_prompt_characters: int = Field(default=4000, ge=100, le=20000)
     ai_timeout_seconds: float = Field(default=45.0, ge=1.0, le=180.0)
     music_resolve_timeout_seconds: float = Field(default=30.0, ge=1.0, le=120.0)
+    heartbeat_interval_seconds: float = Field(default=15.0, ge=1.0, le=300.0)
+    healthcheck_max_age_seconds: float = Field(default=45.0, ge=5.0, le=900.0)
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 

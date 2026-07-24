@@ -77,3 +77,32 @@ jobs:
             htmlcov/
           if-no-files-found: error
           retention-days: 14
+
+  container:
+    name: Container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build container image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: comradbot:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test runtime dependencies
+        run: |
+          docker run --rm --entrypoint python comradbot:ci --version
+          docker run --rm --entrypoint ffmpeg comradbot:ci -version
+          docker run --rm --entrypoint ffprobe comradbot:ci -version
+          docker run --rm --entrypoint python comradbot:ci -c "import comradbot"

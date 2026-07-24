@@ -94,10 +94,10 @@ This is an external compatibility watch item, not unfinished Phase 6 implementat
 ## Phase 9 — Deployment
 
 - [x] Document local execution and minimum Discord permissions
-- [ ] Create a container image with no embedded secrets
-- [ ] Define persistent volumes for the database and custom sounds
+- [x] Create a non-root container image with FFmpeg and no embedded secrets
+- [x] Define a persistent Compose volume for the database and custom sounds
 - [x] Automate startup migrations
-- [ ] Add deployment readiness checks
+- [x] Add heartbeat-based container health checks and CI image builds
 
 ## Phase 10 — Future social features
 

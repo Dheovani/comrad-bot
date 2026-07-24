@@ -1,0 +1,23 @@
+services:
+  comradbot:
+    build:
+      context: .
+    image: comradbot:local
+    env_file:
+      - .env
+    environment:
+      ALEMBIC_CONFIG_FILE: /app/alembic.ini
+      ALEMBIC_DIRECTORY: /app/alembic
+      DATABASE_URL: sqlite+aiosqlite:////app/data/comradbot.db
+      DATA_DIRECTORY: /app/data
+      HEALTHCHECK_HEARTBEAT_FILE: /app/data/.heartbeat
+      SOUNDS_DIRECTORY: /app/data/sounds
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    volumes:
+      - comradbot-data:/app/data
+
+volumes:
+  comradbot-data:
+    name: comradbot-data
