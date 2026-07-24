@@ -70,7 +70,7 @@ checks appropriate to its risk.
 
 - [x] Model `GuildSettings`, `CustomSound`, `AIConversation`, and `AIUsage`
 - [x] Add repositories so Cogs never execute SQL
-- [ ] Add persistent per-guild configuration
+- [x] Add persistent per-guild configuration for default volume and AI availability
 - [x] Add an Alembic migration for the first post-foundation schema evolution
 - [ ] Replace development metadata bootstrap with a migration-only startup policy before deploy
 

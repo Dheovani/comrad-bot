@@ -197,6 +197,30 @@ async def test_disabled_ai_is_friendly(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_guild_can_disable_ai_without_disabling_provider(tmp_path: Path) -> None:
+    provider = FakeProvider()
+
+    async def guild_ai_enabled(guild_id: int) -> bool:
+        return guild_id != 1
+
+    service = AIService(
+        provider,
+        provider,
+        FakeRepository(),  # type: ignore[arg-type]
+        SlidingWindowLimiter(user_limit=1, guild_limit=1),
+        max_context_messages=3,
+        max_prompt_characters=20,
+        max_response_characters=20,
+        temp_directory=tmp_path,
+        guild_ai_enabled=guild_ai_enabled,
+    )
+
+    with pytest.raises(AIDisabledError, match="disabled for this server"):
+        await service.ask(guild_id=1, scope_id=2, user_id=3, prompt="oi")
+    assert provider.seen == []
+
+
+@pytest.mark.asyncio
 async def test_text_only_provider_rejects_speech_before_generating_text(tmp_path: Path) -> None:
     provider = FakeProvider()
     service = AIService(

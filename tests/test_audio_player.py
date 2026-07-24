@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 import discord
 import pytest
 
+from comradbot.audio.manager import GuildAudioManager
 from comradbot.audio.models import AudioItem, AudioItemType
 from comradbot.audio.player import GuildAudioPlayer, ffmpeg_before_options
 from comradbot.errors import AudioPlaybackError, ResolverError
@@ -292,3 +293,28 @@ async def test_idle_player_disconnects_automatically() -> None:
         assert player.voice_client is None
     finally:
         await player.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_audio_manager_uses_persistent_guild_default_for_new_player() -> None:
+    requested_guilds: list[int] = []
+
+    async def default_volume(guild_id: int) -> float:
+        requested_guilds.append(guild_id)
+        return 0.75
+
+    manager = GuildAudioManager(
+        max_queue_size=5,
+        idle_timeout=300,
+        default_volume=0.5,
+        default_volume_provider=default_volume,
+    )
+    try:
+        first = await manager.get_or_create(123)
+        second = await manager.get_or_create(123)
+
+        assert first is second
+        assert first.volume == 0.75
+        assert requested_guilds == [123]
+    finally:
+        await manager.close()

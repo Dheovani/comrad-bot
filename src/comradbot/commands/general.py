@@ -84,6 +84,14 @@ def build_help_embed() -> discord.Embed:
         ),
         inline=False,
     )
+    embed.add_field(
+        name="⚙️ Server settings",
+        value=(
+            "`/settings show` · `/settings volume` · `/settings ai`\n"
+            "Changing settings requires Manage Server permission."
+        ),
+        inline=False,
+    )
     embed.set_footer(text="ComradBot — organized audio for the collective.")
     return embed
 

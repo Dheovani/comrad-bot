@@ -4,7 +4,12 @@ import pytest
 
 from comradbot.ai.models import AIMessage
 from comradbot.database.models import CustomSound, Playlist
-from comradbot.database.repositories import AIRepository, PlaylistRepository, SoundRepository
+from comradbot.database.repositories import (
+    AIRepository,
+    GuildSettingsRepository,
+    PlaylistRepository,
+    SoundRepository,
+)
 from comradbot.database.session import Database
 
 
@@ -60,6 +65,22 @@ async def test_ai_repository_trims_only_what_service_provides(tmp_path: Path) ->
         )
         await repository.reset(1, 2)
         assert await repository.get_messages(1, 2) == []
+    finally:
+        await database.close()
+
+
+@pytest.mark.asyncio
+async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
+    database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'guild.db').as_posix()}")
+    await database.create_schema()
+    repository = GuildSettingsRepository(database.sessions)
+    try:
+        assert await repository.get(123) is None
+        await repository.update(123, default_volume=0.7, ai_enabled=False)
+        found = await repository.get(123)
+        assert found is not None
+        assert found.default_volume == 0.7
+        assert found.ai_enabled is False
     finally:
         await database.close()
 

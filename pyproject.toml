@@ -48,6 +48,7 @@ target-version = "py312"
 select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
 
 [tool.ruff.format]
+exclude = ["AGENTS.md"]
 quote-style = "double"
 
 [tool.mypy]

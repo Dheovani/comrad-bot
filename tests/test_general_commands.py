@@ -24,6 +24,7 @@ def test_help_embed_lists_current_command_groups() -> None:
     assert "/sound upload" in content
     assert "/sound rename" in content
     assert "/ai ask" in content
+    assert "/settings volume" in content
     assert "/ping" in content
 
 

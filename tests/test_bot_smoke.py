@@ -29,8 +29,17 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "help",
             "music",
             "ping",
+            "settings",
             "sound",
         }
+        settings = bot.tree.get_command("settings")
+        assert isinstance(settings, app_commands.Group)
+        assert {command.name for command in settings.commands} == {
+            "ai",
+            "show",
+            "volume",
+        }
+        assert settings.default_permissions.manage_guild is True
         ai = bot.tree.get_command("ai")
         assert isinstance(ai, app_commands.Group)
         assert {command.name for command in ai.commands} == {

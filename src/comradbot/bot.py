@@ -16,10 +16,12 @@ from comradbot.audio.manager import GuildAudioManager
 from comradbot.audio.resolver import YtDlpAudioResolver
 from comradbot.config import Settings
 from comradbot.database.repositories import AIRepository, PlaylistRepository, SoundRepository
+from comradbot.database.repositories.guild_settings import GuildSettingsRepository
 from comradbot.database.session import Database
 from comradbot.errors import ComradBotError, PermissionDeniedError
 from comradbot.logging import log_context
 from comradbot.services.music import PlaylistService
+from comradbot.services.settings import GuildSettingsService
 from comradbot.sounds.service import SoundService
 from comradbot.sounds.storage import SoundStorage
 
@@ -29,6 +31,7 @@ EXTENSIONS = (
     "comradbot.commands.music",
     "comradbot.commands.sounds",
     "comradbot.commands.ai",
+    "comradbot.commands.settings",
 )
 
 
@@ -42,6 +45,10 @@ class ComradBot(commands.Bot):
         super().__init__(command_prefix=commands.when_mentioned, intents=intents)
         self.settings = settings
         self.database = Database(settings.database_url)
+        self.guild_settings_service = GuildSettingsService(
+            GuildSettingsRepository(self.database.sessions),
+            fallback_volume=settings.default_volume,
+        )
         self.ffmpeg = FFmpegRunner()
         self.audio_resolver = YtDlpAudioResolver(settings.music_resolve_timeout_seconds)
         self.audio_manager = GuildAudioManager(
@@ -49,6 +56,7 @@ class ComradBot(commands.Bot):
             idle_timeout=settings.audio_idle_timeout_seconds,
             default_volume=settings.default_volume,
             source_refresher=self.audio_resolver,
+            default_volume_provider=self.guild_settings_service.default_volume_for,
         )
         self.playlist_service = PlaylistService(
             PlaylistRepository(self.database.sessions),
@@ -79,6 +87,7 @@ class ComradBot(commands.Bot):
             max_prompt_characters=settings.ai_max_prompt_characters,
             max_response_characters=settings.max_ai_response_characters,
             temp_directory=settings.data_directory / "tmp",
+            guild_ai_enabled=self.guild_settings_service.ai_enabled_for,
         )
         self.tree.error(self.on_app_command_error)
 

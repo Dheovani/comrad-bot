@@ -108,6 +108,8 @@ class AICog(commands.Cog):
 
     @ai.command(name="status", description="Show AI availability and configured safeguards.")
     async def status(self, interaction: discord.Interaction) -> None:
+        guild = require_guild(interaction)
+        guild_settings = await self.bot.guild_settings_service.get(guild.id)
         provider = self.bot.settings.configured_ai_provider
         if provider == "openai":
             provider_name = "OpenAI"
@@ -115,7 +117,9 @@ class AICog(commands.Cog):
             provider_name = "Groq"
         else:
             provider_name = "Disabled"
-        if provider is None:
+        if not guild_settings.ai_enabled:
+            summary_status = "Disabled for this server"
+        elif provider is None:
             summary_status = "Unavailable (AI provider is disabled)"
         elif not self.bot.settings.discord_message_content_intent:
             summary_status = "Disabled (Message Content Intent is off)"
@@ -124,12 +128,16 @@ class AICog(commands.Cog):
         embed = discord.Embed(title="ComradBot AI status", color=0xD13C3C)
         embed.add_field(
             name="Text provider",
-            value=provider_name,
+            value=provider_name if guild_settings.ai_enabled else "Disabled for this server",
             inline=True,
         )
         embed.add_field(
             name="Speech",
-            value="Available" if self.bot.ai_service.speech_enabled else "Unavailable",
+            value=(
+                "Available"
+                if guild_settings.ai_enabled and self.bot.ai_service.speech_enabled
+                else "Unavailable"
+            ),
             inline=True,
         )
         embed.add_field(

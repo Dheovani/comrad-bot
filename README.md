@@ -29,6 +29,7 @@ The current implementation includes:
 - optional Groq and OpenAI text providers selected through configuration, plus OpenAI TTS;
 - conversational responses when the bot is directly mentioned in a guild channel;
 - opt-in recent-channel summaries and an AI configuration status command;
+- persistent per-server default volume and AI availability settings;
 - bounded AI memory, local user/guild rate limits, cooldowns, timeouts, and metadata-only usage logs;
 - centralized contextual logging and sanitized global command error handling;
 - deterministic tests that do not contact Discord, Groq, OpenAI, or music platforms.
@@ -122,7 +123,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `CUSTOM_COMRADBOT_PERSONA` | No | Replaces the built-in persona when non-empty |
 | `DATA_DIRECTORY` | No | `./data` |
 | `SOUNDS_DIRECTORY` | No | `./data/sounds` |
-| `DEFAULT_VOLUME` | No | `0.5`, constrained to 0–1 |
+| `DEFAULT_VOLUME` | No | `0.5`, fallback for servers without a persisted preference |
 | `MAX_QUEUE_SIZE` | No | `100` |
 | `MAX_PLAYLISTS_PER_GUILD` | No | `25` |
 | `MAX_PLAYLIST_TRACKS` | No | `100` |
@@ -232,6 +233,9 @@ temporary development policy with migration-only startup is tracked in `TODO.md`
 - `/ai summarize count:<number>`
 - `/ai speak prompt:<text>`
 - `/ai status`
+- `/settings show`
+- `/settings volume value:<0-100>`
+- `/settings ai enabled:<boolean>`
 
 The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
 available as a slash command.
@@ -246,6 +250,11 @@ a larger count is requested. It ignores attachments, does not add the transcript
 channel's AI conversation memory, and applies the same local rate limits as `/ai ask`. `/ai status`
 is ephemeral and reports provider availability, TTS availability, summary access, and local limits
 without making an API request or displaying secrets.
+
+Members with Manage Server permission can use `/settings`. The default volume is applied whenever a
+guild player is created; changing it also updates an active player immediately. Disabling AI blocks
+slash commands and direct-mention conversations for that guild without affecting music or custom
+sounds. These preferences are stored in SQLite and remain isolated by guild ID.
 
 ## AI persona
 
@@ -315,6 +324,11 @@ under the Security tab.
   records contain IDs, operation names, character counts, and outcomes—not full conversation
   content. Channel summaries fetch a bounded history only on demand and are not added to persistent
   conversation memory.
+- **Persistent guild preferences:** `GuildSettingsService` is the only business-facing access point
+  for server configuration. Discord commands do not execute SQL, and audio/AI consume the settings
+  through injected async lookups.
+- **Agent documentation formatting:** Ruff excludes `AGENTS.md` from formatting because it is an
+  instruction document containing illustrative snippets, not executable project code.
 - **Initial schema:** metadata bootstrap supports local development; migration `0001` is the baseline,
   and later schema changes must use Alembic.
 - **Voice control permissions:** mutating slash commands and player buttons require the member to
@@ -325,7 +339,6 @@ under the Security tab.
 
 - There is no simultaneous mixing or automatic resume after interruption.
 - Playlist playback resolves tracks sequentially and does not import platform-native playlists.
-- Persistent per-guild settings are not implemented yet.
 - Groq mode supports text conversations but not `/ai speak`; its hosted TTS models do not support
   Portuguese.
 - SQLite is intended for a single local instance. Distributed deployment requires a different
