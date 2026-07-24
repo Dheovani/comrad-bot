@@ -1,5 +1,8 @@
 """Async database engine and session lifecycle."""
 
+from typing import cast
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -22,6 +25,11 @@ class Database:
 
     async def close(self) -> None:
         await self.engine.dispose()
+
+    async def ping(self) -> bool:
+        async with self.engine.connect() as connection:
+            result = await connection.execute(text("SELECT 1"))
+            return cast(int, result.scalar_one()) == 1
 
     def session(self) -> AsyncSession:
         return self.sessions()

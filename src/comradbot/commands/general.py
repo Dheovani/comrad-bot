@@ -9,6 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from comradbot.errors import ComradBotError
+from comradbot.services.observability import HealthSnapshot
 from comradbot.utils.text import split_message
 
 if TYPE_CHECKING:
@@ -80,7 +81,7 @@ def build_help_embed() -> discord.Embed:
         name="Getting started",
         value=(
             "Join a voice channel before starting music or sounds. Use `/ping` to check "
-            "whether the bot is responding."
+            "whether the bot is responding or `/health` for dependency status."
         ),
         inline=False,
     )
@@ -93,6 +94,39 @@ def build_help_embed() -> discord.Embed:
         inline=False,
     )
     embed.set_footer(text="ComradBot — organized audio for the collective.")
+    return embed
+
+
+def build_health_embed(snapshot: HealthSnapshot) -> discord.Embed:
+    status = "Healthy" if snapshot.healthy else "Degraded"
+    color = 0x3BA55D if snapshot.healthy else 0xFAA61A
+    uptime_hours, remainder = divmod(snapshot.uptime_seconds, 3600)
+    uptime_minutes, uptime_seconds = divmod(remainder, 60)
+    embed = discord.Embed(title=f"ComradBot health — {status}", color=color)
+    embed.add_field(
+        name="Dependencies",
+        value=(
+            f"Discord: {'ready' if snapshot.discord_ready else 'unavailable'}\n"
+            f"Database: {'ready' if snapshot.database_ready else 'unavailable'}\n"
+            f"FFmpeg/FFprobe: {'ready' if snapshot.audio_tools_ready else 'unavailable'}"
+        ),
+        inline=True,
+    )
+    embed.add_field(
+        name="Runtime",
+        value=(
+            f"Latency: {snapshot.latency_ms} ms\n"
+            f"Uptime: {uptime_hours}h {uptime_minutes}m {uptime_seconds}s\n"
+            f"Active audio players: {snapshot.active_audio_players}"
+        ),
+        inline=True,
+    )
+    embed.add_field(
+        name="Slash commands since startup",
+        value=(f"Successful: {snapshot.successful_commands}\nFailed: {snapshot.failed_commands}"),
+        inline=False,
+    )
+    embed.set_footer(text="In-memory counters reset whenever the bot restarts.")
     return embed
 
 
@@ -173,6 +207,17 @@ class GeneralCog(commands.Cog):
     async def ping(self, interaction: discord.Interaction) -> None:
         await interaction.response.send_message(
             f"Pong! `{round(interaction.client.latency * 1000)} ms`"
+        )
+
+    @app_commands.command(name="health", description="Show dependency health and runtime metrics.")
+    async def health(self, interaction: discord.Interaction) -> None:
+        snapshot = await self.bot.observability.snapshot(
+            discord_ready=self.bot.is_ready(),
+            latency_seconds=self.bot.latency,
+        )
+        await interaction.response.send_message(
+            embed=build_health_embed(snapshot),
+            ephemeral=True,
         )
 
     @app_commands.command(name="help", description="Show ComradBot's available commands.")

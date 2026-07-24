@@ -32,6 +32,7 @@ The current implementation includes:
 - bounded Groq speech recognition for validated audio and video attachments;
 - persistent per-server default volume and AI availability settings;
 - bounded AI memory, local user/guild rate limits, cooldowns, timeouts, and metadata-only usage logs;
+- an ephemeral dependency health report with uptime, latency, audio-player, and command counters;
 - centralized contextual logging and sanitized global command error handling;
 - deterministic tests that do not contact Discord, Groq, OpenAI, or music platforms.
 
@@ -213,6 +214,7 @@ schema is rejected with an actionable error instead of being changed automatical
 
 - `/help`
 - `/ping`
+- `/health`
 - `/music play query:<text-or-url>`
 - `/music pause`
 - `/music resume`
@@ -350,6 +352,10 @@ ruleset for `main` that requires the `Python 3.12` and `Python 3.13` status chec
 - **Persistent guild preferences:** `GuildSettingsService` is the only business-facing access point
   for server configuration. Discord commands do not execute SQL, and audio/AI consume the settings
   through injected async lookups.
+- **Local observability:** `/health` checks the Discord connection, SQLite, FFmpeg, and FFprobe, then
+  reports non-sensitive uptime, latency, active-player, and slash-command counters. Counters are
+  bounded integers held in process memory and reset on restart; the command does not expose paths,
+  database URLs, tokens, or provider keys.
 - **Speech recognition boundary:** the initial implementation transcribes explicit attachments
   through Groq Whisper after local FFmpeg validation. It does not listen to voice channels. Live
   capture remains deferred because discord.py does not expose a stable receive API compatible with
@@ -406,6 +412,8 @@ ruleset for `main` that requires the `Python 3.12` and `Python 3.13` status chec
 - **Database migration fails:** stop the bot, back up `data/comradbot.db`, and run
   `alembic current` followed by `alembic upgrade head`. Do not delete or stamp a partial database
   without inspecting its schema and data first.
+- **`/health` is degraded:** inspect which dependency is unavailable. Verify the Discord connection,
+  FFmpeg/FFprobe on `PATH`, and SQLite file permissions before restarting the bot.
 
 ## Contributing and security
 

@@ -1,6 +1,7 @@
 """ComradBot lifecycle and service composition."""
 
 import logging
+from typing import Any
 
 import discord
 from discord import app_commands
@@ -21,6 +22,7 @@ from comradbot.database.session import Database
 from comradbot.errors import ComradBotError, PermissionDeniedError
 from comradbot.logging import log_context
 from comradbot.services.music import PlaylistService
+from comradbot.services.observability import ObservabilityService
 from comradbot.services.settings import GuildSettingsService
 from comradbot.sounds.service import SoundService
 from comradbot.sounds.storage import SoundStorage
@@ -57,6 +59,11 @@ class ComradBot(commands.Bot):
             default_volume=settings.default_volume,
             source_refresher=self.audio_resolver,
             default_volume_provider=self.guild_settings_service.default_volume_for,
+        )
+        self.observability = ObservabilityService(
+            self.database,
+            self.ffmpeg,
+            lambda: self.audio_manager.active_player_count,
         )
         self.playlist_service = PlaylistService(
             PlaylistRepository(self.database.sessions),
@@ -136,6 +143,7 @@ class ComradBot(commands.Bot):
     async def on_app_command_error(
         self, interaction: discord.Interaction, error: app_commands.AppCommandError
     ) -> None:
+        self.observability.record_command_failure()
         original = error.original if isinstance(error, app_commands.CommandInvokeError) else error
         with log_context(guild_id=interaction.guild_id, user_id=interaction.user.id):
             if isinstance(original, PermissionDeniedError):
@@ -154,6 +162,13 @@ class ComradBot(commands.Bot):
             await interaction.followup.send(message, ephemeral=True)
         else:
             await interaction.response.send_message(message, ephemeral=True)
+
+    async def on_app_command_completion(
+        self,
+        interaction: discord.Interaction,
+        command: app_commands.Command[Any, ..., Any] | app_commands.ContextMenu,
+    ) -> None:
+        self.observability.record_command_success()
 
 
 def build_ai_providers(

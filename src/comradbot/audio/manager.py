@@ -50,6 +50,10 @@ class GuildAudioManager:
     def get(self, guild_id: int) -> GuildAudioPlayer | None:
         return self._players.get(guild_id)
 
+    @property
+    def active_player_count(self) -> int:
+        return len(self._players)
+
     async def remove(self, guild_id: int) -> None:
         async with self._lock:
             player = self._players.pop(guild_id, None)

@@ -26,6 +26,7 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
 
         assert {command.name for command in bot.tree.get_commands()} == {
             "ai",
+            "health",
             "help",
             "music",
             "ping",
