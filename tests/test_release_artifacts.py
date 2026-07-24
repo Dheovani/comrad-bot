@@ -22,7 +22,7 @@ def test_container_release_workflow_publishes_versioned_multi_platform_image() -
 def test_production_compose_uses_published_image_without_local_build() -> None:
     compose = (PROJECT_ROOT / "compose.production.yaml").read_text(encoding="utf-8")
 
-    assert "image: ${COMRADBOT_IMAGE:-dheovani/comradbot:1.0.0}" in compose
+    assert "image: ${COMRADBOT_IMAGE:-theovani/comradbot:1.0.0}" in compose
     assert "\n    build:" not in compose
     assert "comradbot-data:/app/data" in compose
     assert "restart: unless-stopped" in compose

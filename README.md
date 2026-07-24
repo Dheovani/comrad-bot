@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Dheovani/comrad-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Dheovani/comrad-bot/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/Dheovani/comrad-bot/actions/workflows/codeql.yml/badge.svg)](https://github.com/Dheovani/comrad-bot/actions/workflows/codeql.yml)
-[![Docker Hub](https://img.shields.io/docker/v/dheovani/comradbot?label=Docker%20Hub&sort=semver)](https://hub.docker.com/r/dheovani/comradbot)
+[![Docker Hub](https://img.shields.io/docker/v/theovani/comradbot?label=Docker%20Hub&sort=semver)](https://hub.docker.com/r/theovani/comradbot)
 
 ComradBot is a modular Discord bot for a private group of friends who play games together. The
 current MVP connects three vertical features: music from temporary public streams, validated custom
@@ -231,7 +231,7 @@ into the image.
 ### Run the published image
 
 The versioned image is published at
-[`dheovani/comradbot`](https://hub.docker.com/r/dheovani/comradbot) for AMD64 and ARM64 Linux hosts.
+[`theovani/comradbot`](https://hub.docker.com/r/theovani/comradbot) for AMD64 and ARM64 Linux hosts.
 Download `.env.example` and `compose.production.yaml` from the matching
 [GitHub release](https://github.com/Dheovani/comrad-bot/releases), place them in the same directory,
 and rename `.env.example` to `.env`. After configuring at least `DISCORD_TOKEN`, start version
@@ -249,11 +249,11 @@ Follow logs with:
 docker compose -f compose.production.yaml logs -f comradbot
 ```
 
-The production Compose file pins `dheovani/comradbot:1.0.0` so deployments do not change
+The production Compose file pins `theovani/comradbot:1.0.0` so deployments do not change
 unexpectedly. Set `COMRADBOT_IMAGE` to select another published version:
 
 ```bash
-COMRADBOT_IMAGE=dheovani/comradbot:1.0.0 docker compose -f compose.production.yaml up -d
+COMRADBOT_IMAGE=theovani/comradbot:1.0.0 docker compose -f compose.production.yaml up -d
 ```
 
 Use `docker compose -f compose.production.yaml down` to stop the bot. Do not add
