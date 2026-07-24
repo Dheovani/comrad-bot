@@ -88,7 +88,8 @@ This is an external compatibility watch item, not unfinished Phase 6 implementat
 - [x] Run Ruff, mypy, and pytest across the project
 - [x] Add GitHub Actions CI for Ruff, mypy, and pytest on supported Python versions
 - [x] Add scheduled and change-triggered CodeQL analysis
-- [ ] Add coverage reporting, runtime metrics, and health checks
+- [x] Enforce branch coverage in CI and publish an inspectable coverage artifact
+- [ ] Add runtime metrics and health checks
 
 ## Phase 9 — Deployment
 

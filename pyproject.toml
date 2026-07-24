@@ -26,6 +26,7 @@ dev = [
   "mypy>=1.17,<2",
   "pytest>=8.4,<10",
   "pytest-asyncio>=1.1,<2",
+  "pytest-cov>=6,<8",
   "ruff>=0.12,<1",
 ]
 
@@ -36,9 +37,19 @@ comradbot = "comradbot.__main__:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-addopts = "-ra"
+addopts = "-ra --cov=comradbot --cov-report=term-missing"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["comradbot"]
+
+[tool.coverage.report]
+fail_under = 70
+precision = 1
+show_missing = true
+skip_covered = true
 
 [tool.ruff]
 line-length = 100

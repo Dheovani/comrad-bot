@@ -309,13 +309,18 @@ python -m pytest
 
 Tests use disposable databases and files plus fakes for external services. The default suite never
 makes real Discord, Groq, OpenAI, or media-platform requests. Local FFmpeg integration tests generate
-short WAV fixtures in memory to verify real probing, validation, cleanup, and Opus conversion.
+short WAV fixtures in memory to verify real probing, validation, cleanup, Opus conversion, and
+speech-recognition FLAC normalization. Pytest measures branch coverage across `src/comradbot` and
+fails below the current 70% project baseline.
 
 GitHub Actions installs FFmpeg and runs the same installation, lint, formatting, type-checking, and
-test commands on Python 3.12 and 3.13 for every pull request and push to `main`. A separate CodeQL
-workflow analyzes Python changes on pull requests, pushes to `main`, manual runs, and a weekly
+test commands on Python 3.12 and 3.13 for every pull request and push to `main`. The CI fails when
+any test fails or aggregate branch coverage drops below the baseline. Python 3.12 runs also publish
+the XML and browsable HTML coverage reports as a workflow artifact retained for 14 days. A separate
+CodeQL workflow analyzes Python changes on pull requests, pushes to `main`, manual runs, and a weekly
 schedule. Code scanning must be enabled in the repository settings for CodeQL results to appear
-under the Security tab.
+under the Security tab. To prevent merging a failing pull request, configure a GitHub branch
+ruleset for `main` that requires the `Python 3.12` and `Python 3.13` status checks.
 
 ## Technical decisions
 
