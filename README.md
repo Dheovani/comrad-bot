@@ -414,6 +414,10 @@ ruleset for `main` that requires the `Python 3.12` and `Python 3.13` status chec
   without inspecting its schema and data first.
 - **`/health` is degraded:** inspect which dependency is unavailable. Verify the Discord connection,
   FFmpeg/FFprobe on `PATH`, and SQLite file permissions before restarting the bot.
+- **Many tests fail with `PermissionError` under `%TEMP%\pytest-of-<user>`:** the configured suite
+  uses the repository-local `.pytest-tmp` directory to avoid broken Windows temporary-directory
+  ACLs. Update the editable installation, run tests from the repository root, and do not store
+  personal files in `.pytest-tmp` because pytest recreates it for each run.
 
 ## Contributing and security
 

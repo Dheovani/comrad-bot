@@ -37,7 +37,7 @@ comradbot = "comradbot.__main__:main"
 where = ["src"]
 
 [tool.pytest.ini_options]
-addopts = "-ra --cov=comradbot --cov-report=term-missing"
+addopts = "-ra --basetemp=.pytest-tmp --cov=comradbot --cov-report=term-missing"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
