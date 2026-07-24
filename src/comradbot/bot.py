@@ -38,6 +38,7 @@ class ComradBot(commands.Bot):
         intents.guilds = True
         intents.guild_messages = True
         intents.voice_states = True
+        intents.message_content = settings.discord_message_content_intent
         super().__init__(command_prefix=commands.when_mentioned, intents=intents)
         self.settings = settings
         self.database = Database(settings.database_url)

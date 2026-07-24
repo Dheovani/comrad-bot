@@ -31,6 +31,15 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "ping",
             "sound",
         }
+        ai = bot.tree.get_command("ai")
+        assert isinstance(ai, app_commands.Group)
+        assert {command.name for command in ai.commands} == {
+            "ask",
+            "reset",
+            "speak",
+            "status",
+            "summarize",
+        }
         music = bot.tree.get_command("music")
         assert isinstance(music, app_commands.Group)
         assert {command.name for command in music.commands} == {

@@ -55,7 +55,7 @@ checks appropriate to its risk.
 - [x] Implement bounded memory plus `/ai ask` and `/ai reset`
 - [x] Add user/guild limits, cooldown, timeout, and content-free usage metrics
 - [x] Reuse channel conversation memory for direct bot mentions
-- [ ] Implement `/ai summarize` and `/ai status`
+- [x] Implement `/ai summarize` and `/ai status`
 - [x] Support explicit and backward-compatible automatic provider selection
 
 ## Phase 6 — TTS and AI/voice integration

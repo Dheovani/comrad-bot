@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from comradbot.ai.conversation import AIService, SlidingWindowLimiter
-from comradbot.ai.models import AIMessage
+from comradbot.ai.conversation import AIService, SlidingWindowLimiter, build_summary_prompt
+from comradbot.ai.models import AIMessage, SummaryMessage
 from comradbot.errors import AIDisabledError, RateLimitError, ValidationError
 
 
@@ -85,6 +85,99 @@ async def test_ai_service_limits_context_and_records_usage(tmp_path: Path) -> No
     assert repository.usage[0]["success"] is True
     with pytest.raises(ValidationError, match="máximo"):
         await service.ask(guild_id=1, scope_id=2, user_id=4, prompt="x" * 21)
+
+
+def test_summary_prompt_prioritizes_recent_messages_and_stays_bounded() -> None:
+    prompt, considered = build_summary_prompt(
+        [
+            SummaryMessage(author="one", content="old " * 100),
+            SummaryMessage(author="two", content="middle"),
+            SummaryMessage(author="three", content="newest"),
+        ],
+        max_messages=2,
+        max_characters=150,
+    )
+
+    assert "one:" not in prompt
+    assert "two: middle" in prompt
+    assert "three: newest" in prompt
+    assert len(prompt) <= 150
+    assert considered == 2
+
+
+def test_summary_prompt_supports_the_smallest_valid_prompt_limit() -> None:
+    prompt, considered = build_summary_prompt(
+        [SummaryMessage(author="a very long display name", content="a long message")],
+        max_messages=1,
+        max_characters=100,
+    )
+
+    assert len(prompt) <= 100
+    assert considered == 1
+
+
+@pytest.mark.asyncio
+async def test_ai_service_summarizes_without_persisting_conversation(tmp_path: Path) -> None:
+    provider = FakeProvider()
+    repository = FakeRepository()
+    repository.messages = [AIMessage(role="user", content="existing conversation")]
+    service = AIService(
+        provider,
+        provider,
+        repository,  # type: ignore[arg-type]
+        SlidingWindowLimiter(user_limit=3, guild_limit=3),
+        max_context_messages=2,
+        max_prompt_characters=500,
+        max_response_characters=20,
+        temp_directory=tmp_path,
+    )
+
+    response, considered = await service.summarize(
+        guild_id=1,
+        user_id=3,
+        messages=[
+            SummaryMessage(author="Ana", content="first"),
+            SummaryMessage(author="Beto", content="second"),
+            SummaryMessage(author="Caio", content="third"),
+        ],
+    )
+
+    assert response == "resposta"
+    assert considered == 2
+    assert len(provider.seen) == 1
+    assert "Ana: first" not in provider.seen[0].content
+    assert "Beto: second" in provider.seen[0].content
+    assert "Caio: third" in provider.seen[0].content
+    assert repository.messages == [AIMessage(role="user", content="existing conversation")]
+    assert repository.usage == [
+        {
+            "guild_id": 1,
+            "user_id": 3,
+            "operation": "summarize",
+            "input_characters": len(provider.seen[0].content),
+            "output_characters": len(response),
+            "success": True,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_ai_service_rejects_empty_summary_without_provider_call(tmp_path: Path) -> None:
+    provider = FakeProvider()
+    service = AIService(
+        provider,
+        provider,
+        FakeRepository(),  # type: ignore[arg-type]
+        SlidingWindowLimiter(user_limit=3, guild_limit=3),
+        max_context_messages=2,
+        max_prompt_characters=500,
+        max_response_characters=20,
+        temp_directory=tmp_path,
+    )
+
+    with pytest.raises(ValidationError, match="no eligible messages"):
+        await service.summarize(guild_id=1, user_id=3, messages=[])
+    assert provider.seen == []
 
 
 @pytest.mark.asyncio

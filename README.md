@@ -28,6 +28,7 @@ The current implementation includes:
 - async SQLite persistence through SQLAlchemy 2 repositories and an initial Alembic migration;
 - optional Groq and OpenAI text providers selected through configuration, plus OpenAI TTS;
 - conversational responses when the bot is directly mentioned in a guild channel;
+- opt-in recent-channel summaries and an AI configuration status command;
 - bounded AI memory, local user/guild rate limits, cooldowns, timeouts, and metadata-only usage logs;
 - centralized contextual logging and sanitized global command error handling;
 - deterministic tests that do not contact Discord, Groq, OpenAI, or music platforms.
@@ -89,9 +90,15 @@ either executable is unavailable.
    Message History, Connect, Speak, and Use Application Commands.
 5. Invite the bot and set the server ID as `DISCORD_GUILD_ID` for immediate development sync.
 
-Do not grant Administrator. Message Content Intent remains disabled. The bot enables Guilds, Guild
-Messages, and Voice States intents. Discord still provides message content when the bot itself is
-directly mentioned, so the mention response does not enable general message monitoring.
+Do not grant Administrator. The bot enables Guilds, Guild Messages, and Voice States intents.
+Message Content Intent remains disabled by default. Discord still provides content when the bot
+itself is directly mentioned, so mention responses do not require general message access.
+
+`/ai summarize` is the only current feature that needs Message Content Intent. To use it, enable
+**Message Content Intent** under **Bot > Privileged Gateway Intents**, set
+`DISCORD_MESSAGE_CONTENT_INTENT=true`, and restart the bot. The user and bot also need Read Message
+History in that channel. ComradBot reads a bounded window only when the command is invoked, ignores
+bot messages and attachments, and does not store the fetched transcript.
 
 ## Environment variables
 
@@ -103,6 +110,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DISCORD_GUILD_ID` | Recommended for development | Guild receiving immediate command sync |
 | `DISCORD_SYNC_GLOBAL_COMMANDS` | No | `false`; global command propagation can take longer |
 | `DISCORD_RESPOND_TO_MENTIONS` | No | `true`; send direct mentions to the configured AI |
+| `DISCORD_MESSAGE_CONTENT_INTENT` | No | `false`; opt in to message access for `/ai summarize` |
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///./data/comradbot.db` |
 | `AI_PROVIDER` | No | `auto`; accepts `auto`, `groq`, or `openai` |
 | `GROQ_API_KEY` | No | Enables Groq text conversations |
@@ -221,7 +229,9 @@ temporary development policy with migration-only startup is tracked in `TODO.md`
 - `/sound delete name:<name>`
 - `/ai ask prompt:<text>`
 - `/ai reset`
+- `/ai summarize count:<number>`
 - `/ai speak prompt:<text>`
+- `/ai status`
 
 The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
 available as a slash command.
@@ -230,6 +240,12 @@ Directly mentioning `@ComradBot` in a server channel starts or continues that ch
 conversation. Messages from bots are ignored, Discord IDs in mentions are sanitized before provider
 submission, the reply does not ping the author again, and this behavior can be disabled with
 `DISCORD_RESPOND_TO_MENTIONS=false`.
+
+`/ai summarize` considers at most `MAX_AI_CONTEXT_MESSAGES` recent non-bot text messages, even when
+a larger count is requested. It ignores attachments, does not add the transcript or result to the
+channel's AI conversation memory, and applies the same local rate limits as `/ai ask`. `/ai status`
+is ephemeral and reports provider availability, TTS availability, summary access, and local limits
+without making an API request or displaying secrets.
 
 ## AI persona
 
@@ -297,7 +313,8 @@ under the Security tab.
 - **Optional AI providers:** Cogs and mention listeners depend on `AIService`, not a concrete SDK.
   Groq uses its official asynchronous SDK for text; OpenAI supports text and Portuguese TTS. Usage
   records contain IDs, operation names, character counts, and outcomes—not full conversation
-  content.
+  content. Channel summaries fetch a bounded history only on demand and are not added to persistent
+  conversation memory.
 - **Initial schema:** metadata bootstrap supports local development; migration `0001` is the baseline,
   and later schema changes must use Alembic.
 - **Voice control permissions:** mutating slash commands and player buttons require the member to
@@ -308,7 +325,7 @@ under the Security tab.
 
 - There is no simultaneous mixing or automatic resume after interruption.
 - Playlist playback resolves tracks sequentially and does not import platform-native playlists.
-- `/ai summarize`, `/ai status`, and persistent per-guild settings are not implemented yet.
+- Persistent per-guild settings are not implemented yet.
 - Groq mode supports text conversations but not `/ai speak`; its hosted TTS models do not support
   Portuguese.
 - SQLite is intended for a single local instance. Distributed deployment requires a different
@@ -331,6 +348,9 @@ under the Security tab.
   another public source.
 - **AI is disabled:** set `AI_PROVIDER=groq` with `GROQ_API_KEY`, or configure `OPENAI_API_KEY`.
   Music and custom sounds continue to work without either provider.
+- **`/ai summarize` is disabled:** enable Message Content Intent in the Discord Developer Portal,
+  set `DISCORD_MESSAGE_CONTENT_INTENT=true`, verify Read Message History permissions, and restart
+  the bot.
 - **Groq returns a quota error:** the free plan is rate-limited. Wait for the reported quota window
   to reset and keep the local AI limits enabled.
 - **An upload is rejected:** extension and MIME type are only initial checks; FFprobe must also detect

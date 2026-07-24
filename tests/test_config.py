@@ -54,6 +54,18 @@ def test_custom_persona_is_trimmed_and_blank_value_is_disabled() -> None:
     assert blank.custom_comradbot_persona is None
 
 
+def test_message_content_intent_is_opt_in() -> None:
+    default = Settings(_env_file=None, discord_token="test")
+    enabled = Settings(
+        _env_file=None,
+        discord_token="test",
+        discord_message_content_intent=True,
+    )
+
+    assert default.discord_message_content_intent is False
+    assert enabled.discord_message_content_intent is True
+
+
 def test_custom_multiline_persona_loads_from_dotenv(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text(
