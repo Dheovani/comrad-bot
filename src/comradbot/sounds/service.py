@@ -18,6 +18,7 @@ from comradbot.audio.models import AudioItem, AudioItemType
 from comradbot.database.models import CustomSound, SoundAuditLog
 from comradbot.database.repositories.sounds import SoundRepository
 from comradbot.errors import PermissionDeniedError, ValidationError
+from comradbot.sounds.archive import SoundArchive, SoundArchiveExport, SoundRestoreResult
 from comradbot.sounds.storage import SoundStorage
 from comradbot.sounds.validation import (
     normalize_sound_category,
@@ -36,6 +37,7 @@ class SoundService:
         *,
         max_size_bytes: int,
         max_duration_seconds: int,
+        max_archive_size_bytes: int = 100 * 1024 * 1024,
         quota_provider: Callable[[int], Awaitable[tuple[int, int]]] | None = None,
     ) -> None:
         self._repository = repository
@@ -44,6 +46,7 @@ class SoundService:
         self._max_size_bytes = max_size_bytes
         self._max_duration_seconds = max_duration_seconds
         self._quota_provider = quota_provider
+        self._archive = SoundArchive(storage, max_archive_size_bytes=max_archive_size_bytes)
         self._upload_locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def upload(
@@ -272,6 +275,58 @@ class SoundService:
     async def list_audit(self, guild_id: int, *, limit: int = 20) -> list[SoundAuditLog]:
         return await self._repository.list_audit(guild_id, limit=max(1, min(limit, 50)))
 
+    async def export_archive(self, guild_id: int, *, is_moderator: bool) -> SoundArchiveExport:
+        self._ensure_moderator(is_moderator)
+        return await self._archive.export(guild_id, await self._repository.list(guild_id))
+
+    async def delete_archive_export(self, export: SoundArchiveExport) -> None:
+        await self._archive.delete_export(export)
+
+    async def restore_archive(
+        self,
+        guild_id: int,
+        actor_id: int,
+        data: bytes,
+        *,
+        is_moderator: bool,
+    ) -> SoundRestoreResult:
+        self._ensure_moderator(is_moderator)
+        max_count, max_storage_bytes = await self._sound_quota(guild_id)
+        archived = await self._archive.read(
+            guild_id,
+            data,
+            max_sounds=max_count,
+            max_uncompressed_bytes=max_storage_bytes,
+        )
+        imported: list[str] = []
+        skipped: list[str] = []
+        failed: list[str] = []
+        for sound in archived:
+            normalized_name = normalize_sound_name(sound.name)
+            if await self._repository.get(guild_id, normalized_name) is not None:
+                skipped.append(sound.name)
+                continue
+            try:
+                await self.upload(
+                    guild_id=guild_id,
+                    creator_id=actor_id,
+                    name=sound.name,
+                    filename=f"{normalized_name}.opus",
+                    content_type="audio/opus",
+                    data=sound.data,
+                    category=sound.category,
+                    tags=",".join(sound.tags),
+                )
+            except ValidationError:
+                failed.append(sound.name)
+            else:
+                imported.append(sound.name)
+        return SoundRestoreResult(
+            imported=tuple(imported),
+            skipped=tuple(skipped),
+            failed=tuple(failed),
+        )
+
     async def _require_sound(self, guild_id: int, name: str) -> CustomSound:
         sound = await self._repository.get(guild_id, normalize_sound_name(name))
         if sound is None:
@@ -296,6 +351,13 @@ class SoundService:
     def _ensure_can_modify(sound: CustomSound, actor_id: int, is_moderator: bool) -> None:
         if actor_id != sound.creator_id and not is_moderator:
             raise PermissionDeniedError("Only the sound creator or a moderator may modify it.")
+
+    @staticmethod
+    def _ensure_moderator(is_moderator: bool) -> None:
+        if not is_moderator:
+            raise PermissionDeniedError(
+                "You need Manage Messages or Manage Server permission to manage sound archives."
+            )
 
     @classmethod
     async def _write_temporary_upload(cls, directory: Path, extension: str, data: bytes) -> Path:

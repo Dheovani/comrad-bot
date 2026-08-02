@@ -1,5 +1,6 @@
 """Thin Discord adapter for custom sound management."""
 
+import asyncio
 from typing import TYPE_CHECKING, cast
 
 import discord
@@ -221,6 +222,81 @@ class SoundsCog(commands.Cog):
             embed=discord.Embed(
                 title="Custom sound audit",
                 description="\n".join(lines) or "No rename or deletion events recorded.",
+                color=0xD13C3C,
+            ),
+            ephemeral=True,
+        )
+
+    @sound.command(name="export", description="Export this server's custom sounds as a ZIP file.")
+    async def export(self, interaction: discord.Interaction) -> None:
+        guild = require_guild(interaction)
+        is_moderator = self._is_moderator(interaction)
+        if not is_moderator:
+            raise PermissionDeniedError(
+                "You need Manage Messages or Manage Server permission to export sounds."
+            )
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        exported = await self.bot.sound_service.export_archive(
+            guild.id,
+            is_moderator=is_moderator,
+        )
+        try:
+            archive_size = (await asyncio.to_thread(exported.path.stat)).st_size
+            if archive_size > interaction.filesize_limit:
+                raise ValidationError(
+                    "The archive exceeds this server's Discord attachment limit. "
+                    "Reduce the saved sound library before exporting it through Discord."
+                )
+            attachment = discord.File(
+                exported.path,
+                filename=f"comradbot-sounds-{guild.id}.zip",
+            )
+            try:
+                await interaction.followup.send(
+                    f"📦 Exported **{exported.sound_count}** custom sound(s).",
+                    file=attachment,
+                    ephemeral=True,
+                )
+            finally:
+                attachment.close()
+        finally:
+            await self.bot.sound_service.delete_archive_export(exported)
+
+    @sound.command(name="restore", description="Restore sounds from a ComradBot ZIP archive.")
+    async def restore(
+        self,
+        interaction: discord.Interaction,
+        file: discord.Attachment,
+    ) -> None:
+        guild = require_guild(interaction)
+        is_moderator = self._is_moderator(interaction)
+        if not is_moderator:
+            raise PermissionDeniedError(
+                "You need Manage Messages or Manage Server permission to restore sounds."
+            )
+        if not file.filename.casefold().endswith(".zip"):
+            raise ValidationError("Sound restore requires a .zip archive created by ComradBot.")
+        max_archive_bytes = self.bot.settings.max_sound_archive_size_mb * 1024 * 1024
+        if file.size > max_archive_bytes:
+            raise ValidationError("The sound archive exceeds the configured archive size limit.")
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        result = await self.bot.sound_service.restore_archive(
+            guild.id,
+            interaction.user.id,
+            await file.read(use_cached=True),
+            is_moderator=is_moderator,
+        )
+        description = (
+            f"Imported: **{len(result.imported)}**\n"
+            f"Skipped existing names: **{len(result.skipped)}**\n"
+            f"Failed validation or quota checks: **{len(result.failed)}**"
+        )
+        if result.failed:
+            description += "\nFailed: " + ", ".join(result.failed[:10])
+        await interaction.followup.send(
+            embed=discord.Embed(
+                title="Custom sound restore complete",
+                description=description,
                 color=0xD13C3C,
             ),
             ephemeral=True,

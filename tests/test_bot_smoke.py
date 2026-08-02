@@ -102,12 +102,14 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
         assert {command.name for command in sound.commands} == {
             "audit",
             "delete",
+            "export",
             "info",
             "list",
             "metadata",
             "play",
             "random",
             "rename",
+            "restore",
             "upload",
         }
         for command_name in ("delete", "info", "metadata", "play", "rename"):

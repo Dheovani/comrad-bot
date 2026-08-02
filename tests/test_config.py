@@ -72,6 +72,7 @@ def test_sound_quota_defaults_and_bounds_are_typed() -> None:
 
     assert settings.max_sounds_per_guild == 100
     assert settings.max_sound_storage_mb_per_guild == 500
+    assert settings.max_sound_archive_size_mb == 100
 
 
 def test_custom_multiline_persona_loads_from_dotenv(tmp_path: Path) -> None:

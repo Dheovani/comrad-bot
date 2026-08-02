@@ -18,7 +18,7 @@ selected.
 - [x] Add optional categories, tags, and richer autocomplete filters
 - [x] Add configurable per-guild sound count and storage quotas
 - [x] Add moderator audit records for rename and deletion operations
-- [ ] Add bulk export and restore tools for guild-owned custom sounds
+- [x] Add bulk export and restore tools for guild-owned custom sounds
 
 ## 3. AI and voice evolution
 

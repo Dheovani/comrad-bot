@@ -416,6 +416,71 @@ async def test_audit_listing_is_bounded(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_sound_archive_export_requires_moderator_and_cleans_up(tmp_path: Path) -> None:
+    repository = AsyncMock()
+    sound = custom_sound()
+    repository.list.return_value = [sound]
+    storage = SoundStorage(tmp_path)
+    source = storage.absolute_path(sound.relative_path)
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"stored-opus")
+    service = sound_service(repository, storage, FakeFFmpegRunner())
+
+    with pytest.raises(PermissionDeniedError):
+        await service.export_archive(123, is_moderator=False)
+
+    exported = await service.export_archive(123, is_moderator=True)
+    assert exported.sound_count == 1
+    assert exported.path.is_file()
+    await service.delete_archive_export(exported)
+    assert not exported.path.exists()
+
+
+@pytest.mark.asyncio
+async def test_sound_archive_restore_imports_and_skips_existing_names(tmp_path: Path) -> None:
+    source_repository = AsyncMock()
+    sound = custom_sound()
+    source_repository.list.return_value = [sound]
+    storage = SoundStorage(tmp_path)
+    source = storage.absolute_path(sound.relative_path)
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"stored-opus")
+    source_service = sound_service(source_repository, storage, FakeFFmpegRunner())
+    exported = await source_service.export_archive(123, is_moderator=True)
+    try:
+        archive_data = exported.path.read_bytes()
+    finally:
+        await source_service.delete_archive_export(exported)
+
+    restore_repository = AsyncMock()
+    restore_repository.get.return_value = None
+    restore_repository.add.side_effect = lambda restored: restored
+    restore_service = sound_service(restore_repository, storage, FakeFFmpegRunner())
+    result = await restore_service.restore_archive(
+        123,
+        999,
+        archive_data,
+        is_moderator=True,
+    )
+    assert result.imported == ("Air Horn",)
+    assert result.skipped == ()
+    assert result.failed == ()
+    restore_repository.add.assert_awaited_once()
+
+    restore_repository.reset_mock()
+    restore_repository.get.return_value = sound
+    duplicate_result = await restore_service.restore_archive(
+        123,
+        999,
+        archive_data,
+        is_moderator=True,
+    )
+    assert duplicate_result.imported == ()
+    assert duplicate_result.skipped == ("Air Horn",)
+    restore_repository.add.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_search_filters_names_and_respects_discord_choice_limit(
     tmp_path: Path,
 ) -> None:

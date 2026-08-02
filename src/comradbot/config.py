@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     max_sound_duration_seconds: int = Field(default=30, ge=1, le=600)
     max_sounds_per_guild: int = Field(default=100, ge=1, le=10000)
     max_sound_storage_mb_per_guild: int = Field(default=500, ge=1, le=100000)
+    max_sound_archive_size_mb: int = Field(default=100, ge=1, le=500)
     max_ai_context_messages: int = Field(default=30, ge=1, le=100)
     max_ai_response_characters: int = Field(default=1800, ge=200, le=2000)
     max_transcription_file_size_mb: int = Field(default=20, ge=1, le=25)

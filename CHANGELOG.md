@@ -29,6 +29,8 @@ The project follows [Semantic Versioning](https://semver.org/).
   enforcement and migration `0004`.
 - Added persistent, guild-scoped audit records for custom sound renames and deletions, the
   moderator-only `/sound audit` command, and migration `0005`.
+- Added moderator-only custom sound ZIP export and restore with a versioned manifest, SHA-256
+  integrity checks, guild isolation, archive safety validation, and normal upload quota enforcement.
 
 ## [1.0.0] — 2026-07-24
 

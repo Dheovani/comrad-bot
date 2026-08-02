@@ -26,6 +26,7 @@ The current implementation includes:
 - custom sound validation with extension, MIME type, size, FFprobe content, and duration checks;
 - conversion of accepted uploads to Opus files stored under guild-specific directories with UUIDs;
 - custom sound details, random playback, permission-aware renaming, and name autocomplete;
+- moderator-only, checksum-verified ZIP export and restore for guild-owned custom sounds;
 - async SQLite persistence through SQLAlchemy 2 repositories and startup Alembic migrations;
 - optional Groq and OpenAI text providers selected through configuration, plus OpenAI TTS;
 - conversational responses when the bot is directly mentioned in a guild channel;
@@ -142,6 +143,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `MAX_SOUND_DURATION_SECONDS` | No | `30` |
 | `MAX_SOUNDS_PER_GUILD` | No | `100`; default saved-sound count quota per server |
 | `MAX_SOUND_STORAGE_MB_PER_GUILD` | No | `500`; default converted Opus storage quota per server |
+| `MAX_SOUND_ARCHIVE_SIZE_MB` | No | `100`; hard limit for generated and restored sound ZIP files |
 | `MAX_AI_CONTEXT_MESSAGES` | No | `30` |
 | `MAX_AI_RESPONSE_CHARACTERS` | No | `1800` |
 | `MAX_TRANSCRIPTION_FILE_SIZE_MB` | No | `20`; cannot exceed Groq's 25 MB free-tier limit |
@@ -372,6 +374,8 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/sound rename name:<name> new-name:<new-name>`
 - `/sound delete name:<name>`
 - `/sound audit limit:<1-20>` (moderators only)
+- `/sound export` (moderators only)
+- `/sound restore file:<ComradBot ZIP>` (moderators only)
 - `/ai ask prompt:<text>`
 - `/ai reset`
 - `/ai summarize count:<number>`
@@ -485,6 +489,15 @@ FFprobe without publishing the image or using real credentials.
   corresponding database changes. `/sound audit` exposes the latest records only to members with
   Manage Messages or Manage Server. Records contain guild, sound, actor, owner, action, names, and
   timestamps; they never contain sound file paths or message content and remain after deletion.
+- **Portable sound archives:** `/sound export` produces a versioned ZIP containing an explicit JSON
+  manifest, normalized Opus files, and SHA-256 checksums. `/sound restore` accepts archives only for
+  the same guild, validates all entries in memory without extracting user-controlled paths, and
+  passes every restored sound through the normal FFprobe, FFmpeg, duplicate, duration, and quota
+  pipeline. Existing logical names are skipped and restored sounds are owned by the moderator who
+  runs the command. Restore is incremental: successfully imported sounds remain available if a
+  later entry fails validation or reaches a quota, and the final response reports each outcome.
+  Discord's current server attachment-size limit may be lower than
+  `MAX_SOUND_ARCHIVE_SIZE_MB` and therefore remains the effective export limit.
 - **Temporary streams:** the resolver gives ephemeral public stream URLs to FFmpeg and never stores
   third-party music permanently. Tracks that waited behind another item are re-resolved from their
   public page immediately before playback; a failed refresh is skipped without stopping the guild
@@ -573,6 +586,9 @@ FFprobe without publishing the image or using real credentials.
   real audio within the configured size and duration limits. Generic
   `application/octet-stream` attachments are accepted only as unknown metadata and still undergo
   full FFprobe validation before conversion.
+- **A sound archive cannot be exported or restored:** only members with Manage Messages or Manage
+  Server can use these operations. Verify the ZIP was created for the same guild, is below both the
+  configured archive limit and Discord attachment limit, and has not been modified after export.
 - **Database migration fails:** stop the bot, back up `data/comradbot.db`, and run
   `alembic current` followed by `alembic upgrade head`. Do not delete or stamp a partial database
   without inspecting its schema and data first.

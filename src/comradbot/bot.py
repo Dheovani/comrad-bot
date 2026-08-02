@@ -92,6 +92,7 @@ class ComradBot(commands.Bot):
             self.ffmpeg,
             max_size_bytes=settings.max_sound_file_size_mb * 1024 * 1024,
             max_duration_seconds=settings.max_sound_duration_seconds,
+            max_archive_size_bytes=settings.max_sound_archive_size_mb * 1024 * 1024,
             quota_provider=self.guild_settings_service.sound_quota_for,
         )
         ai_repository = AIRepository(self.database.sessions)
