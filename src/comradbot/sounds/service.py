@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 
 from comradbot.audio.ffmpeg import FFmpegRunner
 from comradbot.audio.models import AudioItem, AudioItemType
-from comradbot.database.models import CustomSound
+from comradbot.database.models import CustomSound, SoundAuditLog
 from comradbot.database.repositories.sounds import SoundRepository
 from comradbot.errors import PermissionDeniedError, ValidationError
 from comradbot.sounds.storage import SoundStorage
@@ -232,6 +232,8 @@ class SoundService:
                 sound.id,
                 name=new_name.strip(),
                 normalized_name=normalized,
+                actor_id=actor_id,
+                acted_as_moderator=is_moderator and actor_id != sound.creator_id,
             )
         except IntegrityError as exc:
             raise ValidationError("A sound with that name already exists in this server.") from exc
@@ -257,11 +259,18 @@ class SoundService:
     ) -> CustomSound:
         sound = await self._require_sound(guild_id, name)
         self._ensure_can_modify(sound, actor_id, is_moderator)
-        deleted = await self._repository.delete(sound.id)
+        deleted = await self._repository.delete(
+            sound.id,
+            actor_id=actor_id,
+            acted_as_moderator=is_moderator and actor_id != sound.creator_id,
+        )
         if not deleted:
             raise ValidationError("The sound was already deleted.")
         await self._storage.delete(sound.relative_path)
         return sound
+
+    async def list_audit(self, guild_id: int, *, limit: int = 20) -> list[SoundAuditLog]:
+        return await self._repository.list_audit(guild_id, limit=max(1, min(limit, 50)))
 
     async def _require_sound(self, guild_id: int, name: str) -> CustomSound:
         sound = await self._repository.get(guild_id, normalize_sound_name(name))

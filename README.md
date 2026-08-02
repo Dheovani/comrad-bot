@@ -371,6 +371,7 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/sound metadata name:<name> category:<optional> tags:<comma-separated>`
 - `/sound rename name:<name> new-name:<new-name>`
 - `/sound delete name:<name>`
+- `/sound audit limit:<1-20>` (moderators only)
 - `/ai ask prompt:<text>`
 - `/ai reset`
 - `/ai summarize count:<number>`
@@ -480,6 +481,10 @@ FFprobe without publishing the image or using real credentials.
   Administrators can override both through `/settings sounds`. Uploads for the same guild are
   serialized, and quota checks run before processing and after conversion to prevent concurrent or
   size-estimation overruns.
+- **Sound management audit:** rename and deletion records are committed atomically with their
+  corresponding database changes. `/sound audit` exposes the latest records only to members with
+  Manage Messages or Manage Server. Records contain guild, sound, actor, owner, action, names, and
+  timestamps; they never contain sound file paths or message content and remain after deletion.
 - **Temporary streams:** the resolver gives ephemeral public stream URLs to FFmpeg and never stores
   third-party music permanently. Tracks that waited behind another item are re-resolved from their
   public page immediately before playback; a failed refresh is skipped without stopping the guild

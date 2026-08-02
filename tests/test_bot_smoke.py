@@ -100,6 +100,7 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
         sound = bot.tree.get_command("sound")
         assert isinstance(sound, app_commands.Group)
         assert {command.name for command in sound.commands} == {
+            "audit",
             "delete",
             "info",
             "list",

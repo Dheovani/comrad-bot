@@ -372,7 +372,47 @@ async def test_rename_updates_logical_name_without_changing_storage_path(
         sound.id,
         name="Victory",
         normalized_name="victory",
+        actor_id=999,
+        acted_as_moderator=True,
     )
+
+
+@pytest.mark.asyncio
+async def test_delete_records_actor_authority_and_removes_file(tmp_path: Path) -> None:
+    sound = custom_sound()
+    repository = AsyncMock()
+    repository.get.return_value = sound
+    repository.delete.return_value = True
+    storage = SoundStorage(tmp_path)
+    path = storage.absolute_path(sound.relative_path)
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"opus")
+    service = sound_service(repository, storage, FakeFFmpegRunner())
+
+    deleted = await service.delete(
+        sound.guild_id,
+        sound.name,
+        actor_id=999,
+        is_moderator=True,
+    )
+
+    assert deleted is sound
+    assert not path.exists()
+    repository.delete.assert_awaited_once_with(
+        sound.id,
+        actor_id=999,
+        acted_as_moderator=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_audit_listing_is_bounded(tmp_path: Path) -> None:
+    repository = AsyncMock()
+    repository.list_audit.return_value = []
+    service = sound_service(repository, SoundStorage(tmp_path), FakeFFmpegRunner())
+
+    assert await service.list_audit(123, limit=500) == []
+    repository.list_audit.assert_awaited_once_with(123, limit=50)
 
 
 @pytest.mark.asyncio

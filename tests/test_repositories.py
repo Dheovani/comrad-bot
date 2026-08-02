@@ -40,12 +40,33 @@ async def test_sound_repository_round_trip(tmp_path: Path) -> None:
         assert found is not None and found.play_count == 1
         assert found.category == "Memes"
         assert found.tags == ("loud",)
-        renamed = await repository.rename(sound.id, name="Air Horn", normalized_name="air-horn")
+        renamed = await repository.rename(
+            sound.id,
+            name="Air Horn",
+            normalized_name="air-horn",
+            actor_id=456,
+            acted_as_moderator=False,
+        )
         assert renamed is not None and renamed.name == "Air Horn"
         assert await repository.get(123, "risada") is None
         assert await repository.get(123, "air-horn") is not None
-        assert await repository.delete(sound.id) is True
+        assert (
+            await repository.delete(
+                sound.id,
+                actor_id=999,
+                acted_as_moderator=True,
+            )
+            is True
+        )
         assert await repository.get(123, "air-horn") is None
+        audit = await repository.list_audit(123, limit=20)
+        assert [(event.action, event.previous_name, event.new_name) for event in audit] == [
+            ("delete", "Air Horn", None),
+            ("rename", "Risada", "Air Horn"),
+        ]
+        assert audit[0].actor_id == 999
+        assert audit[0].acted_as_moderator is True
+        assert await repository.list_audit(999, limit=20) == []
     finally:
         await database.close()
 

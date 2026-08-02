@@ -27,6 +27,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added migration `0003` with safe adoption of existing versioned and legacy development databases.
 - Added configurable per-guild sound count and converted-storage quotas with concurrency-safe upload
   enforcement and migration `0004`.
+- Added persistent, guild-scoped audit records for custom sound renames and deletions, the
+  moderator-only `/sound audit` command, and migration `0005`.
 
 ## [1.0.0] — 2026-07-24
 

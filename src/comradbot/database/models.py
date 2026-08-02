@@ -68,6 +68,22 @@ class CustomSound(Base):
         return tuple(tag for tag in decoded if isinstance(tag, str))
 
 
+class SoundAuditLog(Base):
+    __tablename__ = "sound_audit_logs"
+    __table_args__ = (Index("ix_sound_audit_guild_created", "guild_id", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    guild_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sound_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    action: Mapped[str] = mapped_column(String(20), nullable=False)
+    actor_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    owner_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    acted_as_moderator: Mapped[bool] = mapped_column(nullable=False)
+    previous_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    new_name: Mapped[str | None] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Playlist(Base):
     __tablename__ = "playlists"
     __table_args__ = (

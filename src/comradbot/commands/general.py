@@ -64,7 +64,8 @@ def build_help_embed() -> discord.Embed:
         value=(
             "`/sound upload` · `/sound play` · `/sound random`\n"
             "`/sound list` · `/sound info`\n"
-            "`/sound metadata` · `/sound rename` · `/sound delete`"
+            "`/sound metadata` · `/sound rename` · `/sound delete`\n"
+            "`/sound audit` — moderator history"
         ),
         inline=False,
     )

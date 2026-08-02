@@ -195,6 +195,37 @@ class SoundsCog(commands.Cog):
     ) -> list[app_commands.Choice[str]]:
         return await self._sound_choices(interaction, current)
 
+    @sound.command(name="audit", description="Show recent custom sound rename and delete events.")
+    async def audit(
+        self,
+        interaction: discord.Interaction,
+        limit: app_commands.Range[int, 1, 20] = 20,
+    ) -> None:
+        if not self._is_moderator(interaction):
+            raise PermissionDeniedError(
+                "You need Manage Messages or Manage Server permission to view sound audit records."
+            )
+        guild = require_guild(interaction)
+        events = await self.bot.sound_service.list_audit(guild.id, limit=limit)
+        lines = []
+        for event in events:
+            action = (
+                f"renamed **{event.previous_name}** to **{event.new_name}**"
+                if event.action == "rename"
+                else f"deleted **{event.previous_name}**"
+            )
+            authority = "moderator" if event.acted_as_moderator else "owner"
+            timestamp = discord.utils.format_dt(event.created_at, style="R")
+            lines.append(f"• {timestamp} · <@{event.actor_id}> ({authority}) {action}")
+        await interaction.response.send_message(
+            embed=discord.Embed(
+                title="Custom sound audit",
+                description="\n".join(lines) or "No rename or deletion events recorded.",
+                color=0xD13C3C,
+            ),
+            ephemeral=True,
+        )
+
     async def _enqueue_sound(
         self,
         interaction: discord.Interaction,
