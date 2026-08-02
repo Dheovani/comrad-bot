@@ -47,6 +47,11 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added read-only `/ai discover` recommendations grounded in a bounded, guild-local snapshot of the
   current queue and custom sound catalog, without granting the model playback or mutation actions.
 
+### Discord experience
+
+- Added packaged English and Brazilian Portuguese catalogs, Discord application-command description
+  translation, interaction-locale runtime fallback, and localized `/help` and global error messages.
+
 ## [1.0.0] — 2026-07-24
 
 ComradBot 1.0.0 is the first complete release for private Discord servers. It delivers a shared

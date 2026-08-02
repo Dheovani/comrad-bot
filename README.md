@@ -121,6 +121,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DISCORD_SYNC_GLOBAL_COMMANDS` | No | `false`; global command propagation can take longer |
 | `DISCORD_RESPOND_TO_MENTIONS` | No | `true`; send direct mentions to the configured AI |
 | `DISCORD_MESSAGE_CONTENT_INTENT` | No | `false`; opt in to message access for `/ai summarize` |
+| `DEFAULT_LOCALE` | No | `en-US`; fallback locale, accepts `en-US` or `pt-BR` |
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///./data/comradbot.db` |
 | `ALEMBIC_CONFIG_FILE` | No | `./alembic.ini`; overridden to `/app/alembic.ini` in Docker |
 | `ALEMBIC_DIRECTORY` | No | `./alembic`; overridden to `/app/alembic` in Docker |
@@ -433,6 +434,13 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
 available as a slash command.
 
+ComradBot packages English (`en-US`) and Brazilian Portuguese (`pt-BR`) localization catalogs.
+Discord selects translated command descriptions and `/help` content from the interaction locale.
+Unsupported locales use `DEFAULT_LOCALE`. Command names remain stable in English so existing slash
+commands and documentation do not change. Runtime copy is migrating incrementally; expected domain
+errors that still carry their own text may remain in their original language until they receive
+stable localization keys.
+
 Directly mentioning `@ComradBot` in a server channel starts or continues that channel's bounded AI
 conversation. Messages from bots are ignored, Discord IDs in mentions are sanitized before provider
 submission, the reply does not ping the author again, and this behavior can be disabled with
@@ -610,6 +618,13 @@ FFprobe without publishing the image or using real credentials.
   of queue titles, item types, positions, sound names, categories, tags, and play counts. The prompt
   treats both the query and catalog as untrusted data, and the provider receives no executable tool
   or callback. Recommendations therefore cannot trigger playback or mutate queue or sound state.
+- **Packaged localization catalogs:** application-command descriptions use the official
+  [`discord.app_commands.Translator`](https://discordpy.readthedocs.io/en/stable/interactions/api.html#discord.app_commands.Translator)
+  flow during command synchronization. Runtime messages resolve the interaction locale through the
+  same validated JSON catalogs and fall back to the configured default. Missing
+  command-description translations return `None`, allowing Discord to retain the stable English
+  source string; mismatched runtime message keys fail during startup rather than silently producing
+  incomplete interfaces.
 - **Persistent guild preferences:** `GuildSettingsService` is the only business-facing access point
   for server configuration. Discord commands do not execute SQL, and audio/AI consume the settings
   through injected async lookups.

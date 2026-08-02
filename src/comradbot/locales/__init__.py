@@ -1,0 +1,1 @@
+"""Packaged ComradBot translation catalogs."""

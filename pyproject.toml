@@ -38,6 +38,9 @@ comradbot = "comradbot.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"comradbot.locales" = ["*.json"]
+
 [tool.pytest.ini_options]
 addopts = "-ra --basetemp=.pytest-tmp --cov=comradbot --cov-report=term-missing"
 asyncio_mode = "auto"

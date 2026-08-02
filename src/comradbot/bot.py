@@ -21,6 +21,7 @@ from comradbot.database.repositories import AIRepository, PlaylistRepository, So
 from comradbot.database.repositories.guild_settings import GuildSettingsRepository
 from comradbot.database.session import Database
 from comradbot.errors import ComradBotError, PermissionDeniedError
+from comradbot.localization import ComradBotTranslator, Localizer
 from comradbot.logging import log_context
 from comradbot.services.discovery import AudioDiscoveryService
 from comradbot.services.heartbeat import HeartbeatService
@@ -49,6 +50,7 @@ class ComradBot(commands.Bot):
         intents.message_content = settings.discord_message_content_intent
         super().__init__(command_prefix=commands.when_mentioned, intents=intents)
         self.settings = settings
+        self.localizer = Localizer(default_locale=settings.default_locale)
         self.database = Database(
             settings.database_url,
             alembic_config_file=settings.alembic_config_file,
@@ -135,6 +137,7 @@ class ComradBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         self.settings.prepare_directories()
+        await self.tree.set_translator(ComradBotTranslator(self.localizer))
         ffmpeg, ffprobe = self.ffmpeg.verify_tools()
         logger.info("Ferramentas de áudio disponíveis: ffmpeg=%s ffprobe=%s", ffmpeg, ffprobe)
         logger.info(
@@ -188,10 +191,10 @@ class ComradBot(commands.Bot):
                 message = f"⚠️ {original}"
                 logger.info("Falha esperada: %s", type(original).__name__)
             elif isinstance(original, app_commands.CheckFailure):
-                message = "⛔ Você não tem permissão para usar este comando."
+                message = self.localizer.text("error.permission", interaction.locale)
                 logger.warning("Check de comando negado")
             else:
-                message = "💥 O ComradBot tropeçou numa engrenagem. Tente novamente em instantes."
+                message = self.localizer.text("error.unexpected", interaction.locale)
                 logger.exception("Erro inesperado em comando", exc_info=original)
         if interaction.response.is_done():
             await interaction.followup.send(message, ephemeral=True)

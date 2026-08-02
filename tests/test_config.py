@@ -69,6 +69,14 @@ def test_message_content_intent_is_opt_in() -> None:
     assert enabled.discord_message_content_intent is True
 
 
+def test_default_locale_is_typed() -> None:
+    english = Settings(_env_file=None, discord_token="test")
+    portuguese = Settings(_env_file=None, discord_token="test", default_locale="pt-BR")
+
+    assert english.default_locale == "en-US"
+    assert portuguese.default_locale == "pt-BR"
+
+
 def test_sound_quota_defaults_and_bounds_are_typed() -> None:
     settings = Settings(_env_file=None, discord_token="test")
 

@@ -9,6 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from comradbot.errors import ComradBotError
+from comradbot.localization import Localizer, default_localizer
 from comradbot.services.observability import HealthSnapshot
 from comradbot.utils.text import split_message
 
@@ -38,65 +39,42 @@ def extract_mention_prompt(content: str, bot_user_id: int) -> str:
     )
 
 
-def build_help_embed() -> discord.Embed:
+def build_help_embed(
+    localizer: Localizer | None = None,
+    locale: discord.Locale | str | None = None,
+) -> discord.Embed:
+    localizer = localizer or default_localizer()
     embed = discord.Embed(
-        title="🤝 ComradBot command guide",
-        description=(
-            "Use the slash commands below. Discord will show each command's parameters "
-            "while you type."
-        ),
+        title=localizer.text("help.title", locale),
+        description=localizer.text("help.description", locale),
         color=0xD13C3C,
     )
     embed.add_field(
-        name="🎵 Music",
-        value=(
-            "`/music play` — search for or play a public URL\n"
-            "`/music pause` · `/music resume` · `/music skip`\n"
-            "`/music stop` · `/music repeat` · `/music disconnect`\n"
-            "`/music queue` · `/music now`\n"
-            "`/music volume` · `/music remove` · `/music clear`\n"
-            "`/music playlist` — persistent server playlists"
-        ),
+        name=localizer.text("help.music.name", locale),
+        value=localizer.text("help.music.value", locale),
         inline=False,
     )
     embed.add_field(
-        name="🔊 Custom sounds",
-        value=(
-            "`/sound upload` · `/sound play` · `/sound random`\n"
-            "`/sound list` · `/sound info`\n"
-            "`/sound metadata` · `/sound rename` · `/sound delete`\n"
-            "`/sound audit` — moderator history\n"
-            "`/sound export` · `/sound restore` — moderator backups"
-        ),
+        name=localizer.text("help.sounds.name", locale),
+        value=localizer.text("help.sounds.value", locale),
         inline=False,
     )
     embed.add_field(
-        name="🤖 AI",
-        value=(
-            "`/ai ask` · `/ai discover` · `/ai reset` · `/ai summarize` · `/ai transcribe`\n"
-            "`/ai speak` · `/ai status` · `/ai usage`\n"
-            "AI commands require a configured provider; audio features work without one."
-        ),
+        name=localizer.text("help.ai.name", locale),
+        value=localizer.text("help.ai.value", locale),
         inline=False,
     )
     embed.add_field(
-        name="Getting started",
-        value=(
-            "Join a voice channel before starting music or sounds. Use `/ping` to check "
-            "whether the bot is responding or `/health` for dependency status."
-        ),
+        name=localizer.text("help.start.name", locale),
+        value=localizer.text("help.start.value", locale),
         inline=False,
     )
     embed.add_field(
-        name="⚙️ Server settings",
-        value=(
-            "`/settings show` · `/settings volume` · `/settings ai`\n"
-            "`/settings ai-memory` · `/settings ai-budget` · `/settings sounds`\n"
-            "Changing settings requires Manage Server permission."
-        ),
+        name=localizer.text("help.settings.name", locale),
+        value=localizer.text("help.settings.value", locale),
         inline=False,
     )
-    embed.set_footer(text="ComradBot — organized audio for the collective.")
+    embed.set_footer(text=localizer.text("help.footer", locale))
     return embed
 
 
@@ -202,7 +180,7 @@ class GeneralCog(commands.Cog):
                 message.guild.id,
                 message.author.id,
             )
-            chunks = ["💥 O ComradBot tropeçou numa engrenagem. Tente novamente em instantes."]
+            chunks = [self.bot.localizer.text("error.unexpected")]
 
         try:
             await message.reply(
@@ -241,7 +219,10 @@ class GeneralCog(commands.Cog):
 
     @app_commands.command(name="help", description="Show ComradBot's available commands.")
     async def help_command(self, interaction: discord.Interaction) -> None:
-        await interaction.response.send_message(embed=build_help_embed(), ephemeral=True)
+        await interaction.response.send_message(
+            embed=build_help_embed(self.bot.localizer, interaction.locale),
+            ephemeral=True,
+        )
 
 
 async def setup(bot: commands.Bot) -> None:

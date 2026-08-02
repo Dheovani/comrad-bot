@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     discord_sync_global_commands: bool = False
     discord_respond_to_mentions: bool = True
     discord_message_content_intent: bool = False
+    default_locale: Literal["en-US", "pt-BR"] = "en-US"
 
     database_url: str = "sqlite+aiosqlite:///./data/comradbot.db"
     alembic_config_file: Path = Path("./alembic.ini")

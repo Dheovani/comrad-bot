@@ -1,0 +1,26 @@
+{
+  "commands": {
+    "Check whether ComradBot is responding.": "Verifica se o ComradBot está respondendo.",
+    "Show dependency health and runtime metrics.": "Mostra a saúde das dependências e métricas de execução.",
+    "Show ComradBot's available commands.": "Mostra os comandos disponíveis do ComradBot.",
+    "Find relevant items already in this server's queue and sound library.": "Encontra itens relevantes na fila e na biblioteca de sons deste servidor.",
+    "Describe the music or custom sound you want to find.": "Descreva a música ou o som personalizado que deseja encontrar."
+  },
+  "messages": {
+    "error.permission": "⛔ Você não tem permissão para usar este comando.",
+    "error.unexpected": "💥 O ComradBot tropeçou numa engrenagem. Tente novamente em instantes.",
+    "help.title": "🤝 Guia de comandos do ComradBot",
+    "help.description": "Use os comandos de barra abaixo. O Discord mostrará os parâmetros enquanto você digita.",
+    "help.music.name": "🎵 Música",
+    "help.music.value": "`/music play` — pesquisa ou reproduz uma URL pública\n`/music pause` · `/music resume` · `/music skip`\n`/music stop` · `/music repeat` · `/music disconnect`\n`/music queue` · `/music now`\n`/music volume` · `/music remove` · `/music clear`\n`/music playlist` — playlists persistentes do servidor",
+    "help.sounds.name": "🔊 Sons personalizados",
+    "help.sounds.value": "`/sound upload` · `/sound play` · `/sound random`\n`/sound list` · `/sound info`\n`/sound metadata` · `/sound rename` · `/sound delete`\n`/sound audit` — histórico para moderadores\n`/sound export` · `/sound restore` — backups para moderadores",
+    "help.ai.name": "🤖 IA",
+    "help.ai.value": "`/ai ask` · `/ai discover` · `/ai reset` · `/ai summarize` · `/ai transcribe`\n`/ai speak` · `/ai status` · `/ai usage`\nOs comandos de IA exigem um provedor configurado; o áudio funciona sem ele.",
+    "help.start.name": "Primeiros passos",
+    "help.start.value": "Entre em um canal de voz antes de iniciar músicas ou sons. Use `/ping` para verificar o bot ou `/health` para consultar as dependências.",
+    "help.settings.name": "⚙️ Configurações do servidor",
+    "help.settings.value": "`/settings show` · `/settings volume` · `/settings ai`\n`/settings ai-memory` · `/settings ai-budget` · `/settings sounds`\nAlterar configurações exige a permissão Gerenciar Servidor.",
+    "help.footer": "ComradBot — áudio organizado para o coletivo."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "commands": {},
+  "messages": {
+    "error.permission": "⛔ You do not have permission to use this command.",
+    "error.unexpected": "💥 ComradBot tripped over a gear. Try again in a moment.",
+    "help.title": "🤝 ComradBot command guide",
+    "help.description": "Use the slash commands below. Discord will show each command's parameters while you type.",
+    "help.music.name": "🎵 Music",
+    "help.music.value": "`/music play` — search for or play a public URL\n`/music pause` · `/music resume` · `/music skip`\n`/music stop` · `/music repeat` · `/music disconnect`\n`/music queue` · `/music now`\n`/music volume` · `/music remove` · `/music clear`\n`/music playlist` — persistent server playlists",
+    "help.sounds.name": "🔊 Custom sounds",
+    "help.sounds.value": "`/sound upload` · `/sound play` · `/sound random`\n`/sound list` · `/sound info`\n`/sound metadata` · `/sound rename` · `/sound delete`\n`/sound audit` — moderator history\n`/sound export` · `/sound restore` — moderator backups",
+    "help.ai.name": "🤖 AI",
+    "help.ai.value": "`/ai ask` · `/ai discover` · `/ai reset` · `/ai summarize` · `/ai transcribe`\n`/ai speak` · `/ai status` · `/ai usage`\nAI commands require a configured provider; audio features work without one.",
+    "help.start.name": "Getting started",
+    "help.start.value": "Join a voice channel before starting music or sounds. Use `/ping` to check whether the bot is responding or `/health` for dependency status.",
+    "help.settings.name": "⚙️ Server settings",
+    "help.settings.value": "`/settings show` · `/settings volume` · `/settings ai`\n`/settings ai-memory` · `/settings ai-budget` · `/settings sounds`\nChanging settings requires Manage Server permission.",
+    "help.footer": "ComradBot — organized audio for the collective."
+  }
+}
