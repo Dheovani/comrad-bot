@@ -52,7 +52,7 @@ def build_help_embed() -> discord.Embed:
         value=(
             "`/music play` — search for or play a public URL\n"
             "`/music pause` · `/music resume` · `/music skip`\n"
-            "`/music stop` · `/music disconnect`\n"
+            "`/music stop` · `/music repeat` · `/music disconnect`\n"
             "`/music queue` · `/music now`\n"
             "`/music volume` · `/music remove` · `/music clear`\n"
             "`/music playlist` — persistent server playlists"
@@ -124,6 +124,22 @@ def build_health_embed(snapshot: HealthSnapshot) -> discord.Embed:
     embed.add_field(
         name="Slash commands since startup",
         value=(f"Successful: {snapshot.successful_commands}\nFailed: {snapshot.failed_commands}"),
+        inline=False,
+    )
+    embed.add_field(
+        name="Music resolver since startup",
+        value=(
+            "Initial — "
+            f"successful: {snapshot.resolver_initial.successful}, "
+            f"failed: {snapshot.resolver_initial.failed}, "
+            f"timed out: {snapshot.resolver_initial.timed_out}, "
+            f"average: {snapshot.resolver_initial.average_latency_ms} ms\n"
+            "Refresh — "
+            f"successful: {snapshot.resolver_refresh.successful}, "
+            f"failed: {snapshot.resolver_refresh.failed}, "
+            f"timed out: {snapshot.resolver_refresh.timed_out}, "
+            f"average: {snapshot.resolver_refresh.average_latency_ms} ms"
+        ),
         inline=False,
     )
     embed.set_footer(text="In-memory counters reset whenever the bot restarts.")

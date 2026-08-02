@@ -7,8 +7,26 @@ from yt_dlp.utils import DownloadError
 
 from comradbot.audio import resolver as resolver_module
 from comradbot.audio.models import AudioItem, AudioItemType
-from comradbot.audio.resolver import YtDlpAudioResolver, audio_item_from_info
+from comradbot.audio.resolver import (
+    ResolverOperation,
+    ResolverOutcome,
+    YtDlpAudioResolver,
+    audio_item_from_info,
+)
 from comradbot.errors import OperationTimeoutError, ResolverError
+
+
+class SimpleMetrics:
+    def __init__(self) -> None:
+        self.results: list[tuple[ResolverOperation, ResolverOutcome, int]] = []
+
+    def record_resolver_result(
+        self,
+        operation: ResolverOperation,
+        outcome: ResolverOutcome,
+        latency_ms: int,
+    ) -> None:
+        self.results.append((operation, outcome, latency_ms))
 
 
 def test_audio_item_from_search_result_uses_first_playable_entry() -> None:
@@ -85,6 +103,48 @@ async def test_resolver_maps_worker_timeout(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 @pytest.mark.asyncio
+async def test_resolver_records_sanitized_initial_and_refresh_metrics(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    metrics = SimpleMetrics()
+    times = iter((10.0, 10.025, 20.0, 20.075))
+    resolver = YtDlpAudioResolver(
+        timeout_seconds=1,
+        metrics=metrics,
+        clock=lambda: next(times),
+    )
+    resolve_sync = AsyncMock(
+        side_effect=[
+            AudioItem(AudioItemType.MUSIC, "Initial", "stream-1", requester_id=42),
+            AudioItem(AudioItemType.MUSIC, "Refresh", "stream-2", requester_id=42),
+        ]
+    )
+
+    async def fake_to_thread(function: object, *args: object) -> object:
+        del function
+        return await resolve_sync(*args)
+
+    monkeypatch.setattr(resolver_module.asyncio, "to_thread", fake_to_thread)
+
+    await resolver.resolve("track name", requester_id=42)
+    source = await resolver.refresh_source(
+        AudioItem(
+            AudioItemType.MUSIC,
+            "Queued",
+            "expired",
+            requester_id=42,
+            webpage_url="https://example.test/watch/1",
+        )
+    )
+
+    assert source == "stream-2"
+    assert metrics.results == [
+        (ResolverOperation.RESOLVE, ResolverOutcome.SUCCESS, 25),
+        (ResolverOperation.REFRESH, ResolverOutcome.SUCCESS, 75),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_refresh_source_resolves_original_public_page(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -96,7 +156,7 @@ async def test_refresh_source_resolves_original_public_page(
         requester_id=42,
     )
     resolve = AsyncMock(return_value=refreshed)
-    monkeypatch.setattr(resolver, "resolve", resolve)
+    monkeypatch.setattr(resolver, "_resolve", resolve)
     queued = AudioItem(
         AudioItemType.MUSIC,
         "Track",
@@ -109,7 +169,11 @@ async def test_refresh_source_resolves_original_public_page(
     source = await resolver.refresh_source(queued)
 
     assert source == "https://media.example/fresh"
-    resolve.assert_awaited_once_with("https://example.test/watch/1", 42)
+    resolve.assert_awaited_once_with(
+        "https://example.test/watch/1",
+        42,
+        ResolverOperation.REFRESH,
+    )
 
 
 @pytest.mark.asyncio

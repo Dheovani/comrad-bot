@@ -499,9 +499,11 @@ FFprobe without publishing the image or using real credentials.
   deployment. Multiple bot replicas are unsupported until persistence and distributed locks move to
   infrastructure designed for concurrent instances.
 - **Local observability:** `/health` checks the Discord connection, SQLite, FFmpeg, and FFprobe, then
-  reports non-sensitive uptime, latency, active-player, and slash-command counters. Counters are
-  bounded integers held in process memory and reset on restart; the command does not expose paths,
-  database URLs, tokens, or provider keys.
+  reports non-sensitive uptime, latency, active-player, slash-command, and music-resolver counters.
+  Initial resolutions and playback-time source refreshes expose separate success, failure, timeout,
+  and average-latency metrics. Resolver logs classify inputs only as search text or URL and never
+  include the query, resolved stream URL, database URL, tokens, or provider keys. Counters are
+  bounded integers held in process memory and reset on restart.
 - **Speech recognition boundary:** the initial implementation transcribes explicit attachments
   through Groq Whisper after local FFmpeg validation. It does not listen to voice channels. Live
   capture remains deferred because discord.py does not expose a stable receive API compatible with

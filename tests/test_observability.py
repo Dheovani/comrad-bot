@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from comradbot.audio.resolver import ResolverOperation, ResolverOutcome
 from comradbot.commands.general import build_health_embed
 from comradbot.database.session import Database
 from comradbot.services.observability import ObservabilityService
@@ -33,6 +34,9 @@ async def test_health_snapshot_reports_metrics_and_dependencies() -> None:
     service.record_command_success()
     service.record_command_success()
     service.record_command_failure()
+    service.record_resolver_result(ResolverOperation.RESOLVE, ResolverOutcome.SUCCESS, 40)
+    service.record_resolver_result(ResolverOperation.RESOLVE, ResolverOutcome.TIMEOUT, 60)
+    service.record_resolver_result(ResolverOperation.REFRESH, ResolverOutcome.FAILURE, 30)
 
     snapshot = await service.snapshot(discord_ready=True, latency_seconds=0.042)
 
@@ -42,9 +46,15 @@ async def test_health_snapshot_reports_metrics_and_dependencies() -> None:
     assert snapshot.active_audio_players == 2
     assert snapshot.successful_commands == 2
     assert snapshot.failed_commands == 1
+    assert snapshot.resolver_initial.successful == 1
+    assert snapshot.resolver_initial.timed_out == 1
+    assert snapshot.resolver_initial.average_latency_ms == 50
+    assert snapshot.resolver_refresh.failed == 1
+    assert snapshot.resolver_refresh.average_latency_ms == 30
     embed = build_health_embed(snapshot)
     assert "Healthy" in (embed.title or "")
     assert "1h 1m 1s" in str(embed.fields[1].value)
+    assert "Initial" in str(embed.fields[3].value)
 
 
 @pytest.mark.asyncio

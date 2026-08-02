@@ -61,18 +61,21 @@ class ComradBot(commands.Bot):
             fallback_volume=settings.default_volume,
         )
         self.ffmpeg = FFmpegRunner()
-        self.audio_resolver = YtDlpAudioResolver(settings.music_resolve_timeout_seconds)
+        self.observability = ObservabilityService(
+            self.database,
+            self.ffmpeg,
+            lambda: self.audio_manager.active_player_count,
+        )
+        self.audio_resolver = YtDlpAudioResolver(
+            settings.music_resolve_timeout_seconds,
+            metrics=self.observability,
+        )
         self.audio_manager = GuildAudioManager(
             max_queue_size=settings.max_queue_size,
             idle_timeout=settings.audio_idle_timeout_seconds,
             default_volume=settings.default_volume,
             source_refresher=self.audio_resolver,
             default_volume_provider=self.guild_settings_service.default_volume_for,
-        )
-        self.observability = ObservabilityService(
-            self.database,
-            self.ffmpeg,
-            lambda: self.audio_manager.active_player_count,
         )
         self.playlist_service = PlaylistService(
             PlaylistRepository(self.database.sessions),

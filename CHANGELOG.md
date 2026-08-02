@@ -16,6 +16,7 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 - Added guild-scoped repeat modes for the current item and complete shared audio queue.
 - Added permission-aware playlist renaming and atomic saved-track reordering.
+- Added privacy-safe resolver outcome and latency metrics for initial resolution and source refresh.
 - Documented final decisions to retain single-source playback, explicit requeue after interruption,
   and provider-neutral individual playlist references.
 

@@ -11,7 +11,7 @@ selected.
 - [x] Evaluate optional simultaneous mixing; retain the bounded single-source player
 - [x] Add playlist reordering and playlist metadata editing
 - [x] Evaluate platform-native playlist import; retain provider-neutral individual references
-- [ ] Add resolver observability for provider failures and source-refresh latency
+- [x] Add resolver observability for provider failures and source-refresh latency
 
 ## 2. Custom sound evolution
 
