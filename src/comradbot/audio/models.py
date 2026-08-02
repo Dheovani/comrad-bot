@@ -13,6 +13,12 @@ class AudioItemType(StrEnum):
     TTS = "tts"
 
 
+class RepeatMode(StrEnum):
+    OFF = "off"
+    TRACK = "track"
+    QUEUE = "queue"
+
+
 class AudioSourceRefresher(Protocol):
     async def refresh_source(self, item: "AudioItem") -> str: ...
 

@@ -5,7 +5,7 @@ import logging
 
 import discord
 
-from comradbot.audio.models import AudioItem, AudioItemType, AudioSourceRefresher
+from comradbot.audio.models import AudioItem, AudioItemType, AudioSourceRefresher, RepeatMode
 from comradbot.audio.queue import AudioQueue
 from comradbot.errors import AudioPlaybackError, VoiceConnectionError
 
@@ -36,7 +36,8 @@ class GuildAudioPlayer:
         self.volume = volume
         self.current: AudioItem | None = None
         self.voice_client: discord.VoiceClient | None = None
-        self.repeat = False
+        self.repeat_mode = RepeatMode.OFF
+        self._suppress_repeat_once = False
         self._source_refresher = source_refresher
         self._closed = False
         self._playback_done = asyncio.Event()
@@ -72,16 +73,24 @@ class GuildAudioPlayer:
                 await self.disconnect()
                 continue
             self.current = item
+            retain_item = False
             try:
                 await self._refresh_source(item)
                 await self._play(item)
-                if self.repeat and not self._closed:
-                    await self.queue.put(item, next_item=True)
-                    continue
+                suppress_repeat = self._suppress_repeat_once
+                self._suppress_repeat_once = False
+                if not suppress_repeat and not self._closed:
+                    if self.repeat_mode is RepeatMode.TRACK:
+                        await self.queue.put(item, next_item=True)
+                        retain_item = True
+                    elif self.repeat_mode is RepeatMode.QUEUE:
+                        await self.queue.put(item)
+                        retain_item = True
             except Exception:
                 logger.exception("Failed to play audio item type=%s", item.item_type)
             finally:
-                if not self.repeat or self._closed:
+                self._suppress_repeat_once = False
+                if not retain_item:
                     await item.cleanup()
                 self.current = None
 
@@ -127,6 +136,7 @@ class GuildAudioPlayer:
             self.voice_client.is_playing() or self.voice_client.is_paused()
         ):
             raise AudioPlaybackError("There is no audio to skip.")
+        self._suppress_repeat_once = True
         self.voice_client.stop()
 
     async def remove_queued(self, position: int) -> AudioItem:
@@ -143,7 +153,11 @@ class GuildAudioPlayer:
     async def stop(self) -> None:
         await self.clear_queue()
         if self.voice_client and (self.voice_client.is_playing() or self.voice_client.is_paused()):
+            self._suppress_repeat_once = True
             self.voice_client.stop()
+
+    def set_repeat_mode(self, mode: RepeatMode) -> None:
+        self.repeat_mode = mode
 
     def set_volume(self, value: float) -> None:
         self.volume = min(max(value, 0.0), 1.0)

@@ -12,6 +12,13 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added scheduled Trivy scanning for high and critical container vulnerabilities with SARIF uploads.
 - Added release metadata validation and checksummed Docker deployment bundles to release automation.
 
+### Audio and music
+
+- Added guild-scoped repeat modes for the current item and complete shared audio queue.
+- Added permission-aware playlist renaming and atomic saved-track reordering.
+- Documented final decisions to retain single-source playback, explicit requeue after interruption,
+  and provider-neutral individual playlist references.
+
 ## [1.0.0] — 2026-07-24
 
 ComradBot 1.0.0 is the first complete release for private Discord servers. It delivers a shared

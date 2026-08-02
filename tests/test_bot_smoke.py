@@ -62,6 +62,7 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "playlist",
             "queue",
             "remove",
+            "repeat",
             "resume",
             "skip",
             "stop",
@@ -74,15 +75,19 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "create",
             "delete",
             "list",
+            "move",
             "play",
             "remove",
+            "rename",
             "show",
         }
         for command_name, parameter_name in (
             ("add", "playlist_name"),
             ("delete", "name"),
+            ("move", "name"),
             ("play", "name"),
             ("remove", "name"),
+            ("rename", "name"),
             ("show", "name"),
         ):
             command = playlist.get_command(command_name)

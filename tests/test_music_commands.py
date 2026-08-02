@@ -1,4 +1,4 @@
-from comradbot.audio.models import AudioItem, AudioItemType
+from comradbot.audio.models import AudioItem, AudioItemType, RepeatMode
 from comradbot.commands.music import build_queue_embed
 
 
@@ -29,3 +29,9 @@ def test_queue_embed_handles_empty_player() -> None:
     embed = build_queue_embed(None, [])
 
     assert embed.description == "The queue is empty."
+
+
+def test_queue_embed_displays_repeat_mode() -> None:
+    embed = build_queue_embed(None, [], RepeatMode.QUEUE)
+
+    assert embed.footer.text == "Repeat: queue"

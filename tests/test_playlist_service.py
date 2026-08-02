@@ -118,6 +118,67 @@ async def test_playlist_lifecycle_enforces_ownership_and_limits(tmp_path: Path) 
         assert [(track.position, track.title) for track in details.tracks] == [
             (1, "Resolved second")
         ]
+
+        renamed = await service.rename(
+            guild_id=1,
+            name="Raid Night",
+            new_name="Friday Raid",
+            actor_id=10,
+            is_moderator=False,
+        )
+        assert renamed.name == "Friday Raid"
+        assert renamed.normalized_name == "friday-raid"
+        assert (await service.get(1, "Friday Raid")).playlist.id == playlist.id
+    finally:
+        await database.close()
+
+
+@pytest.mark.asyncio
+async def test_playlist_tracks_can_be_reordered_atomically(tmp_path: Path) -> None:
+    database = Database(f"sqlite+aiosqlite:///{(tmp_path / 'reorder.db').as_posix()}")
+    await database.migrate()
+    service = PlaylistService(
+        PlaylistRepository(database.sessions),
+        FakeResolver(),
+        max_playlists_per_guild=5,
+        max_tracks_per_playlist=5,
+    )
+    try:
+        await service.create(1, "Mix", 10)
+        for query in ("one", "two", "three"):
+            await service.add_track(
+                guild_id=1,
+                playlist_name="Mix",
+                query=query,
+                actor_id=10,
+                is_moderator=False,
+            )
+
+        moved = await service.move_track(
+            guild_id=1,
+            playlist_name="Mix",
+            from_position=3,
+            to_position=1,
+            actor_id=10,
+            is_moderator=False,
+        )
+        details = await service.get(1, "Mix")
+
+        assert moved.title == "Resolved three"
+        assert [(track.position, track.title) for track in details.tracks] == [
+            (1, "Resolved three"),
+            (2, "Resolved one"),
+            (3, "Resolved two"),
+        ]
+        with pytest.raises(ValidationError, match="positions"):
+            await service.move_track(
+                guild_id=1,
+                playlist_name="Mix",
+                from_position=4,
+                to_position=1,
+                actor_id=10,
+                is_moderator=False,
+            )
     finally:
         await database.close()
 

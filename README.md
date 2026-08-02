@@ -345,6 +345,7 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/music resume`
 - `/music skip`
 - `/music stop`
+- `/music repeat mode:<off|track|queue>`
 - `/music queue`
 - `/music now`
 - `/music volume value:<0-100>`
@@ -357,6 +358,8 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/music playlist show name:<name>`
 - `/music playlist play name:<name>`
 - `/music playlist remove name:<name> position:<number>`
+- `/music playlist move name:<name> from-position:<number> to-position:<number>`
+- `/music playlist rename name:<name> new-name:<new-name>`
 - `/music playlist delete name:<name>`
 - `/sound upload name:<name> file:<attachment>`
 - `/sound play name:<name> interrupt:<boolean>`
@@ -456,8 +459,15 @@ FFprobe without publishing the image or using real credentials.
 - **One player per guild:** `GuildAudioManager` is the only player registry. Music, custom sounds,
   and TTS all produce `AudioItem` objects for the same queue.
 - **Priority without mixing:** music is appended normally; custom sounds and TTS can be inserted as
-  the next item. Explicit interruption stops the current item. Interrupted streams are not resumed
-  automatically in the MVP.
+  the next item. Explicit interruption stops the current item. Simultaneous mixing was evaluated
+  and intentionally rejected for the final single-source player: a PCM mixer would add continuous
+  CPU work, buffering and synchronization failure modes for a private-server feature that already
+  has deterministic priority insertion and interruption.
+- **No automatic interrupted-stream resume:** reliable resume would require a playback clock that
+  excludes pauses, source-specific seek capability, and renewed public stream URLs before passing a
+  calculated offset to FFmpeg. Discord's playback callback does not report a trustworthy consumed
+  position, and remote sources do not guarantee accurate seeking. Explicit interruption therefore
+  discards the interrupted item; users can queue it again manually.
 - **Internal Opus format:** accepted uploads are converted to 96 kbps Opus, which is compact and
   appropriate for Discord voice. Physical filenames use UUIDs; logical names remain in the database.
 - **Temporary streams:** the resolver gives ephemeral public stream URLs to FFmpeg and never stores
@@ -469,7 +479,10 @@ FFprobe without publishing the image or using real credentials.
 - **Persistent playlists:** playlists belong to one guild and store track titles, durations, and
   public source references only. Temporary stream URLs and media files are not persisted. Playlist
   playback resolves each reference again and reports tracks that are unavailable or do not fit in
-  the current queue.
+  the current queue. Public platform-native playlist import was evaluated and intentionally omitted:
+  extractor-specific collections have unstable metadata, potentially large request fan-out, and
+  ambiguous partial-failure semantics. Users can save individually resolved public references, while
+  the command and service layers remain independent of any one platform.
 - **Optional AI providers:** Cogs and mention listeners depend on `AIService`, not a concrete SDK.
   Groq uses its official asynchronous SDK for text and attachment transcription; OpenAI supports
   text and Portuguese TTS. Usage
@@ -505,7 +518,8 @@ FFprobe without publishing the image or using real credentials.
 
 ## Current limitations
 
-- There is no simultaneous mixing or automatic resume after interruption.
+- There is no simultaneous mixing or automatic resume after interruption; both were evaluated and
+  intentionally excluded from the final single-source player design.
 - Playlist playback resolves tracks sequentially and does not import platform-native playlists.
 - Groq mode supports text conversations but not `/ai speak`; its hosted TTS models do not support
   Portuguese.

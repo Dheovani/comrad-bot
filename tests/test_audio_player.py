@@ -8,7 +8,7 @@ import discord
 import pytest
 
 from comradbot.audio.manager import GuildAudioManager
-from comradbot.audio.models import AudioItem, AudioItemType
+from comradbot.audio.models import AudioItem, AudioItemType, RepeatMode
 from comradbot.audio.player import GuildAudioPlayer, ffmpeg_before_options
 from comradbot.errors import AudioPlaybackError, ResolverError
 
@@ -194,6 +194,56 @@ async def test_player_advances_and_cleans_each_completed_item(tmp_path: Path) ->
         assert player.current is None
     finally:
         release_second.set()
+        await player.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_track_repeat_replays_current_item_before_next_item() -> None:
+    player = GuildAudioPlayer(1, max_queue_size=5, idle_timeout=300, volume=0.5)
+    played: list[str] = []
+    repeated = asyncio.Event()
+
+    async def fake_play(item: AudioItem) -> None:
+        await asyncio.sleep(0)
+        played.append(item.title)
+        if played == ["first", "first"]:
+            repeated.set()
+
+    player._play = AsyncMock(side_effect=fake_play)
+    player.set_repeat_mode(RepeatMode.TRACK)
+    try:
+        await player.enqueue(audio_item("first"))
+        await player.enqueue(audio_item("second"))
+        await asyncio.wait_for(repeated.wait(), timeout=0.5)
+
+        assert played[:2] == ["first", "first"]
+    finally:
+        player.set_repeat_mode(RepeatMode.OFF)
+        await player.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_queue_repeat_cycles_completed_items_to_the_end() -> None:
+    player = GuildAudioPlayer(1, max_queue_size=5, idle_timeout=300, volume=0.5)
+    played: list[str] = []
+    cycled = asyncio.Event()
+
+    async def fake_play(item: AudioItem) -> None:
+        await asyncio.sleep(0)
+        played.append(item.title)
+        if played == ["first", "second", "first"]:
+            cycled.set()
+
+    player._play = AsyncMock(side_effect=fake_play)
+    player.set_repeat_mode(RepeatMode.QUEUE)
+    try:
+        await player.enqueue(audio_item("first"))
+        await player.enqueue(audio_item("second"))
+        await asyncio.wait_for(cycled.wait(), timeout=0.5)
+
+        assert played[:3] == ["first", "second", "first"]
+    finally:
+        player.set_repeat_mode(RepeatMode.OFF)
         await player.shutdown()
 
 

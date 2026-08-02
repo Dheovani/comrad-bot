@@ -162,6 +162,56 @@ class PlaylistService:
             raise ValidationError("That playlist position does not exist.")
         return track
 
+    async def move_track(
+        self,
+        *,
+        guild_id: int,
+        playlist_name: str,
+        from_position: int,
+        to_position: int,
+        actor_id: int,
+        is_moderator: bool,
+    ) -> SavedTrack:
+        playlist = await self._require_playlist(guild_id, playlist_name)
+        self._ensure_can_modify(playlist, actor_id, is_moderator)
+        track = await self._repository.move_track(
+            playlist.id,
+            from_position,
+            to_position,
+        )
+        if track is None:
+            raise ValidationError("One of those playlist positions does not exist.")
+        return track
+
+    async def rename(
+        self,
+        *,
+        guild_id: int,
+        name: str,
+        new_name: str,
+        actor_id: int,
+        is_moderator: bool,
+    ) -> Playlist:
+        playlist = await self._require_playlist(guild_id, name)
+        self._ensure_can_modify(playlist, actor_id, is_moderator)
+        normalized = normalize_playlist_name(new_name)
+        duplicate = await self._repository.get_playlist(guild_id, normalized)
+        if duplicate is not None and duplicate.id != playlist.id:
+            raise ValidationError("A playlist with that name already exists in this server.")
+        try:
+            renamed = await self._repository.rename_playlist(
+                playlist.id,
+                name=new_name.strip(),
+                normalized_name=normalized,
+            )
+        except IntegrityError as exc:
+            raise ValidationError(
+                "A playlist with that name already exists in this server."
+            ) from exc
+        if renamed is None:
+            raise ValidationError("The playlist was deleted before it could be renamed.")
+        return renamed
+
     async def delete(
         self,
         *,

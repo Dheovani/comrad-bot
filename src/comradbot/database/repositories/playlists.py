@@ -32,6 +32,21 @@ class PlaylistRepository:
             )
             return list(result)
 
+    async def rename_playlist(
+        self,
+        playlist_id: int,
+        *,
+        name: str,
+        normalized_name: str,
+    ) -> Playlist | None:
+        async with self._sessions.begin() as session:
+            playlist = await session.get(Playlist, playlist_id)
+            if playlist is None:
+                return None
+            playlist.name = name
+            playlist.normalized_name = normalized_name
+        return playlist
+
     async def add_track(
         self,
         *,
@@ -86,6 +101,40 @@ class PlaylistRepository:
                 .values(position=SavedTrack.position - 1)
             )
         return track
+
+    async def move_track(
+        self,
+        playlist_id: int,
+        from_position: int,
+        to_position: int,
+    ) -> SavedTrack | None:
+        async with self._sessions.begin() as session:
+            result = await session.scalars(
+                select(SavedTrack)
+                .where(SavedTrack.playlist_id == playlist_id)
+                .order_by(SavedTrack.position)
+            )
+            tracks = list(result)
+            if (
+                from_position < 1
+                or from_position > len(tracks)
+                or to_position < 1
+                or to_position > len(tracks)
+            ):
+                return None
+
+            moved = tracks.pop(from_position - 1)
+            tracks.insert(to_position - 1, moved)
+            if from_position == to_position:
+                return moved
+
+            # Temporary negative positions avoid transient collisions with the unique constraint.
+            for temporary_position, track in enumerate(tracks, 1):
+                track.position = -temporary_position
+            await session.flush()
+            for final_position, track in enumerate(tracks, 1):
+                track.position = final_position
+        return moved
 
     async def delete_playlist(self, playlist_id: int) -> bool:
         async with self._sessions.begin() as session:

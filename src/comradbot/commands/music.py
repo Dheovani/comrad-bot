@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from comradbot.audio.models import AudioItem
+from comradbot.audio.models import AudioItem, RepeatMode
 from comradbot.audio.player import GuildAudioPlayer
 from comradbot.commands.helpers import (
     connect_player_to_user,
@@ -22,7 +22,11 @@ if TYPE_CHECKING:
     from comradbot.bot import ComradBot
 
 
-def build_queue_embed(current: AudioItem | None, items: list[AudioItem]) -> discord.Embed:
+def build_queue_embed(
+    current: AudioItem | None,
+    items: list[AudioItem],
+    repeat_mode: RepeatMode = RepeatMode.OFF,
+) -> discord.Embed:
     lines: list[str] = []
     if current is not None:
         lines.append(f"**Now playing:** {current.title}")
@@ -32,11 +36,13 @@ def build_queue_embed(current: AudioItem | None, items: list[AudioItem]) -> disc
     )
     if len(items) > 20:
         lines.append(f"*…and {len(items) - 20} more item(s).*")
-    return discord.Embed(
+    embed = discord.Embed(
         title="📋 ComradBot queue",
         description="\n".join(lines) or "The queue is empty.",
         color=0xD13C3C,
     )
+    embed.set_footer(text=f"Repeat: {repeat_mode.value}")
+    return embed
 
 
 def build_playlist_embed(details: PlaylistDetails) -> discord.Embed:
@@ -120,7 +126,9 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message("The queue is empty.")
             return
         items = await player.queue.snapshot()
-        await interaction.response.send_message(embed=build_queue_embed(player.current, items))
+        await interaction.response.send_message(
+            embed=build_queue_embed(player.current, items, player.repeat_mode)
+        )
 
     @music.command(name="now", description="Show the current audio item.")
     async def now(self, interaction: discord.Interaction) -> None:
@@ -134,7 +142,21 @@ class MusicCog(commands.Cog):
         embed.add_field(name="Type", value=item.item_type.value.replace("_", " ").title())
         embed.add_field(name="Requested by", value=f"<@{item.requester_id}>")
         embed.add_field(name="Duration", value=format_duration(item.duration_seconds))
+        embed.add_field(name="Repeat", value=player.repeat_mode.value.title())
         await interaction.response.send_message(embed=embed)
+
+    @music.command(name="repeat", description="Set the repeat mode for this server's player.")
+    @app_commands.describe(mode="Off, repeat the current item, or repeat the complete queue")
+    async def repeat(self, interaction: discord.Interaction, mode: RepeatMode) -> None:
+        player = self._player(interaction)
+        ensure_same_voice_channel(interaction, player)
+        player.set_repeat_mode(mode)
+        messages = {
+            RepeatMode.OFF: "➡️ Repeat disabled.",
+            RepeatMode.TRACK: "🔂 Repeating the current audio item.",
+            RepeatMode.QUEUE: "🔁 Repeating the complete queue.",
+        }
+        await interaction.response.send_message(messages[mode])
 
     @music.command(name="volume", description="Set playback volume from 0 to 100.")
     async def volume(
@@ -291,6 +313,67 @@ class MusicCog(commands.Cog):
 
     @playlist_remove.autocomplete("name")
     async def playlist_remove_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        return await self._playlist_choices(interaction, current)
+
+    @playlist.command(name="move", description="Move a track to another playlist position.")
+    @app_commands.describe(
+        name="Playlist name",
+        from_position="Current displayed position",
+        to_position="New displayed position",
+    )
+    async def playlist_move(
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        from_position: app_commands.Range[int, 1, 500],
+        to_position: app_commands.Range[int, 1, 500],
+    ) -> None:
+        guild = require_guild(interaction)
+        track = await self.bot.playlist_service.move_track(
+            guild_id=guild.id,
+            playlist_name=name,
+            from_position=from_position,
+            to_position=to_position,
+            actor_id=interaction.user.id,
+            is_moderator=self._is_moderator(interaction),
+        )
+        await interaction.response.send_message(
+            f"↕️ Moved **{track.title}** to position **{to_position}**.",
+            ephemeral=True,
+        )
+
+    @playlist_move.autocomplete("name")
+    async def playlist_move_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        return await self._playlist_choices(interaction, current)
+
+    @playlist.command(name="rename", description="Rename a playlist you manage.")
+    @app_commands.describe(name="Current playlist name", new_name="New playlist name")
+    @app_commands.rename(new_name="new-name")
+    async def playlist_rename(
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        new_name: str,
+    ) -> None:
+        guild = require_guild(interaction)
+        playlist = await self.bot.playlist_service.rename(
+            guild_id=guild.id,
+            name=name,
+            new_name=new_name,
+            actor_id=interaction.user.id,
+            is_moderator=self._is_moderator(interaction),
+        )
+        await interaction.response.send_message(
+            f"✏️ Playlist renamed to **{playlist.name}**.",
+            ephemeral=True,
+        )
+
+    @playlist_rename.autocomplete("name")
+    async def playlist_rename_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
         return await self._playlist_choices(interaction, current)
