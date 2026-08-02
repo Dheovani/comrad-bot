@@ -90,7 +90,8 @@ def build_help_embed() -> discord.Embed:
     embed.add_field(
         name="⚙️ Server settings",
         value=(
-            "`/settings show` · `/settings volume` · `/settings ai` · `/settings sounds`\n"
+            "`/settings show` · `/settings volume` · `/settings ai`\n"
+            "`/settings ai-memory` · `/settings sounds`\n"
             "Changing settings requires Manage Server permission."
         ),
         inline=False,
@@ -171,7 +172,7 @@ class GeneralCog(commands.Cog):
             async with message.channel.typing():
                 response = await self.bot.ai_service.ask(
                     guild_id=message.guild.id,
-                    scope_id=message.channel.id,
+                    channel_id=message.channel.id,
                     user_id=message.author.id,
                     prompt=prompt,
                 )

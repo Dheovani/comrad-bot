@@ -43,7 +43,36 @@ def test_alembic_upgrade_builds_current_schema(tmp_path: Path) -> None:
         "sound_audit_logs",
     } <= tables
     assert {"category", "tags_json"} <= sound_columns
-    assert {"max_sound_count", "max_sound_storage_mb"} <= settings_columns
+    assert {
+        "max_sound_count",
+        "max_sound_storage_mb",
+        "ai_conversation_scope",
+        "ai_retention_days",
+    } <= settings_columns
+
+
+def test_ai_policy_migration_preserves_existing_channel_conversations(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[1]
+    database_path = tmp_path / "policy-upgrade.db"
+    config = Config(root / "alembic.ini")
+    config.set_main_option("script_location", str(root / "alembic"))
+    config.set_main_option(
+        "sqlalchemy.url",
+        f"sqlite+aiosqlite:///{database_path.as_posix()}",
+    )
+    command.upgrade(config, "0005")
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "INSERT INTO ai_conversations (guild_id, scope_id, messages_json) VALUES (?, ?, ?)",
+            (123, 456, "[]"),
+        )
+    command.upgrade(config, "head")
+
+    with sqlite3.connect(database_path) as connection:
+        conversation = connection.execute(
+            "SELECT guild_id, scope_type, scope_id, messages_json FROM ai_conversations"
+        ).fetchone()
+    assert conversation == (123, "channel", 456, "[]")
 
 
 @pytest.mark.asyncio
@@ -57,7 +86,7 @@ async def test_startup_migration_upgrades_fresh_database(tmp_path: Path) -> None
 
     with sqlite3.connect(database_path) as connection:
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert revision == ("0005",)
+    assert revision == ("0006",)
 
 
 @pytest.mark.asyncio
@@ -78,7 +107,7 @@ async def test_startup_migration_adopts_complete_legacy_schema(tmp_path: Path) -
         settings = connection.execute(
             "SELECT default_volume, ai_enabled FROM guild_settings WHERE guild_id = 123"
         ).fetchone()
-    assert revision == ("0005",)
+    assert revision == ("0006",)
     assert settings == (0.7, 0)
 
 
@@ -101,7 +130,7 @@ async def test_startup_migration_adopts_versioned_hybrid_legacy_schema(tmp_path:
 
     with sqlite3.connect(database_path) as connection:
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert revision == ("0005",)
+    assert revision == ("0006",)
 
 
 @pytest.mark.asyncio
@@ -127,7 +156,7 @@ async def test_startup_migration_upgrades_known_legacy_baseline(tmp_path: Path) 
         }
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
     assert {"playlists", "saved_tracks"} <= tables
-    assert revision == ("0005",)
+    assert revision == ("0006",)
 
 
 @pytest.mark.asyncio

@@ -30,6 +30,8 @@ class GuildSettings(Base):
     ai_enabled: Mapped[bool] = mapped_column(default=True)
     max_sound_count: Mapped[int] = mapped_column(Integer, default=100)
     max_sound_storage_mb: Mapped[int] = mapped_column(Integer, default=500)
+    ai_conversation_scope: Mapped[str] = mapped_column(String(20), default="channel")
+    ai_retention_days: Mapped[int] = mapped_column(Integer, default=30)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -121,10 +123,18 @@ class SavedTrack(Base):
 
 class AIConversation(Base):
     __tablename__ = "ai_conversations"
-    __table_args__ = (UniqueConstraint("guild_id", "scope_id", name="uq_ai_conversation_scope"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "guild_id",
+            "scope_type",
+            "scope_id",
+            name="uq_ai_conversation_scope",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     guild_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    scope_type: Mapped[str] = mapped_column(String(20), default="channel", nullable=False)
     scope_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     messages_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     updated_at: Mapped[datetime] = mapped_column(

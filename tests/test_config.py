@@ -4,6 +4,7 @@ import pytest
 
 from comradbot.ai.groq_provider import GroqProvider
 from comradbot.ai.openai_provider import OpenAIProvider
+from comradbot.ai.policy import ConversationScope
 from comradbot.bot import build_ai_providers
 from comradbot.config import Settings
 
@@ -73,6 +74,8 @@ def test_sound_quota_defaults_and_bounds_are_typed() -> None:
     assert settings.max_sounds_per_guild == 100
     assert settings.max_sound_storage_mb_per_guild == 500
     assert settings.max_sound_archive_size_mb == 100
+    assert settings.default_ai_conversation_scope is ConversationScope.CHANNEL
+    assert settings.default_ai_retention_days == 30
 
 
 def test_custom_multiline_persona_loads_from_dotenv(tmp_path: Path) -> None:

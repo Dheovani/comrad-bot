@@ -6,6 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
+from comradbot.ai.policy import ConversationScope
 from comradbot.commands.helpers import require_guild
 from comradbot.errors import PermissionDeniedError
 
@@ -46,6 +47,14 @@ class SettingsCog(commands.Cog):
         embed.add_field(
             name="AI features",
             value="Enabled" if settings.ai_enabled else "Disabled",
+            inline=True,
+        )
+        embed.add_field(
+            name="AI conversation memory",
+            value=(
+                f"Scope: {settings.ai_conversation_scope.value}\n"
+                f"Retention: {settings.ai_retention_days} day(s)"
+            ),
             inline=True,
         )
         embed.add_field(
@@ -98,6 +107,33 @@ class SettingsCog(commands.Cog):
         state = "enabled" if enabled else "disabled"
         await interaction.response.send_message(
             f"🤖 AI features are now **{state}** for this server.",
+            ephemeral=True,
+        )
+
+    @guild_settings.command(
+        name="ai-memory",
+        description="Set AI conversation scope and retention for this server.",
+    )
+    @app_commands.rename(retention_days="retention-days")
+    async def ai_memory(
+        self,
+        interaction: discord.Interaction,
+        scope: ConversationScope,
+        retention_days: app_commands.Range[int, 1, 365] = 30,
+    ) -> None:
+        require_manage_guild(interaction)
+        guild = require_guild(interaction)
+        settings = await self.bot.guild_settings_service.set_ai_conversation_policy(
+            guild.id,
+            scope=scope,
+            retention_days=retention_days,
+        )
+        await self.bot.ai_service.reset_guild(guild.id)
+        await interaction.response.send_message(
+            "🧠 AI conversation policy updated to "
+            f"**{settings.ai_conversation_scope.value}** scope with "
+            f"**{settings.ai_retention_days} day(s)** retention. "
+            "Previous conversation memory was removed.",
             ephemeral=True,
         )
 

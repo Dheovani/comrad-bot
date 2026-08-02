@@ -1,9 +1,12 @@
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from sqlalchemy import update
 
 from comradbot.ai.models import AIMessage
-from comradbot.database.models import CustomSound, Playlist
+from comradbot.ai.policy import ConversationScope
+from comradbot.database.models import AIConversation, CustomSound, Playlist
 from comradbot.database.repositories import (
     AIRepository,
     GuildSettingsRepository,
@@ -78,8 +81,11 @@ async def test_ai_repository_trims_only_what_service_provides(tmp_path: Path) ->
     repository = AIRepository(database.sessions)
     messages = [AIMessage(role="user", content="oi"), AIMessage(role="assistant", content="olá")]
     try:
-        await repository.save_messages(1, 2, messages)
-        assert await repository.get_messages(1, 2) == messages
+        await repository.save_messages(1, ConversationScope.CHANNEL, 2, messages)
+        assert await repository.get_messages(1, ConversationScope.CHANNEL, 2) == messages
+        user_messages = [AIMessage(role="user", content="private")]
+        await repository.save_messages(1, ConversationScope.USER, 2, user_messages)
+        assert await repository.get_messages(1, ConversationScope.USER, 2) == user_messages
         await repository.record_usage(
             guild_id=1,
             user_id=3,
@@ -88,8 +94,16 @@ async def test_ai_repository_trims_only_what_service_provides(tmp_path: Path) ->
             output_characters=3,
             success=True,
         )
-        await repository.reset(1, 2)
-        assert await repository.get_messages(1, 2) == []
+        await repository.reset(1, ConversationScope.CHANNEL, 2)
+        assert await repository.get_messages(1, ConversationScope.CHANNEL, 2) == []
+        assert await repository.get_messages(1, ConversationScope.USER, 2) == user_messages
+        old = datetime.now(UTC) - timedelta(days=31)
+        async with database.sessions.begin() as session:
+            await session.execute(
+                update(AIConversation).where(AIConversation.guild_id == 1).values(updated_at=old)
+            )
+        assert await repository.purge_expired(1, datetime.now(UTC) - timedelta(days=30)) == 1
+        assert await repository.get_messages(1, ConversationScope.USER, 2) == []
     finally:
         await database.close()
 
@@ -107,6 +121,8 @@ async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
             ai_enabled=False,
             max_sound_count=20,
             max_sound_storage_mb=30,
+            ai_conversation_scope="user",
+            ai_retention_days=14,
         )
         found = await repository.get(123)
         assert found is not None
@@ -114,6 +130,8 @@ async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
         assert found.ai_enabled is False
         assert found.max_sound_count == 20
         assert found.max_sound_storage_mb == 30
+        assert found.ai_conversation_scope == "user"
+        assert found.ai_retention_days == 14
     finally:
         await database.close()
 

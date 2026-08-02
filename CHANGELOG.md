@@ -32,6 +32,11 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added moderator-only custom sound ZIP export and restore with a versioned manifest, SHA-256
   integrity checks, guild isolation, archive safety validation, and normal upload quota enforcement.
 
+### Generative AI
+
+- Added per-guild channel, user, server-wide, and stateless conversation scopes with configurable
+  1-to-365-day retention, expiry cleanup, safe scope transitions, and migration `0006`.
+
 ## [1.0.0] — 2026-07-24
 
 ComradBot 1.0.0 is the first complete release for private Discord servers. It delivers a shared

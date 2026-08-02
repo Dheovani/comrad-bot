@@ -7,6 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from comradbot.ai.models import SummaryMessage
+from comradbot.ai.policy import ConversationScope
 from comradbot.commands.helpers import connect_player_to_user, require_guild
 from comradbot.errors import PermissionDeniedError, ValidationError
 from comradbot.utils.text import split_message
@@ -29,7 +30,7 @@ class AICog(commands.Cog):
         await interaction.response.defer(thinking=True)
         response = await self.bot.ai_service.ask(
             guild_id=guild.id,
-            scope_id=interaction.channel_id,
+            channel_id=interaction.channel_id,
             user_id=interaction.user.id,
             prompt=prompt,
         )
@@ -44,8 +45,34 @@ class AICog(commands.Cog):
         guild = require_guild(interaction)
         if interaction.channel_id is None:
             raise ValidationError("Não foi possível identificar o canal desta conversa.")
-        await self.bot.ai_service.reset(guild.id, interaction.channel_id)
-        await interaction.response.send_message("🧹 Contexto deste canal removido.", ephemeral=True)
+        policy = await self.bot.guild_settings_service.ai_conversation_policy_for(guild.id)
+        if policy.scope is ConversationScope.SERVER and not (
+            isinstance(interaction.user, discord.Member)
+            and (
+                interaction.user.guild_permissions.manage_messages
+                or interaction.user.guild_permissions.manage_guild
+            )
+        ):
+            raise PermissionDeniedError(
+                "You need Manage Messages or Manage Server to reset server-wide AI memory."
+            )
+        scope = await self.bot.ai_service.reset(
+            guild.id,
+            interaction.channel_id,
+            interaction.user.id,
+        )
+        scope_label = {
+            ConversationScope.CHANNEL: "this channel",
+            ConversationScope.USER: "your user",
+            ConversationScope.SERVER: "this server",
+            ConversationScope.NONE: "stateless mode",
+        }[scope]
+        message = (
+            "AI memory is already disabled for this server."
+            if scope is ConversationScope.NONE
+            else f"🧹 AI context for **{scope_label}** was removed."
+        )
+        await interaction.response.send_message(message, ephemeral=True)
 
     @ai.command(name="summarize", description="Summarize recent messages in this channel.")
     @app_commands.describe(count="Maximum number of recent user messages to consider.")
@@ -155,6 +182,14 @@ class AICog(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="Conversation memory",
+            value=(
+                f"Scope: {guild_settings.ai_conversation_scope.value}\n"
+                f"Retention: {guild_settings.ai_retention_days} day(s)"
+            ),
+            inline=False,
+        )
+        embed.add_field(
             name="Local limits",
             value=(
                 f"{self.bot.settings.ai_user_requests_per_minute} request(s)/minute per user\n"
@@ -210,11 +245,16 @@ class AICog(commands.Cog):
     @ai.command(name="speak", description="Gera uma resposta curta e a reproduz no canal de voz.")
     async def speak(self, interaction: discord.Interaction, prompt: str) -> None:
         guild = require_guild(interaction)
+        if interaction.channel_id is None:
+            raise ValidationError("Could not identify the channel for this conversation.")
         await interaction.response.defer(thinking=True)
         player = await self.bot.audio_manager.get_or_create(guild.id)
         await connect_player_to_user(interaction, player)
         text, item = await self.bot.ai_service.speak(
-            guild_id=guild.id, user_id=interaction.user.id, prompt=prompt
+            guild_id=guild.id,
+            channel_id=interaction.channel_id,
+            user_id=interaction.user.id,
+            prompt=prompt,
         )
         position = await player.enqueue(item, next_item=True)
         await interaction.followup.send(

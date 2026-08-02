@@ -4,6 +4,7 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
 
+from comradbot.ai.policy import ConversationPolicy, ConversationScope
 from comradbot.database.models import GuildSettings
 from comradbot.database.repositories.guild_settings import GuildSettingsRepository
 from comradbot.errors import ValidationError
@@ -15,6 +16,8 @@ class GuildConfiguration:
     ai_enabled: bool
     max_sound_count: int
     max_sound_storage_mb: int
+    ai_conversation_scope: ConversationScope
+    ai_retention_days: int
 
 
 class GuildSettingsService:
@@ -26,6 +29,8 @@ class GuildSettingsService:
         fallback_ai_enabled: bool = True,
         fallback_max_sound_count: int = 100,
         fallback_max_sound_storage_mb: int = 500,
+        fallback_ai_conversation_scope: ConversationScope = ConversationScope.CHANNEL,
+        fallback_ai_retention_days: int = 30,
     ) -> None:
         self._repository = repository
         self._fallback = GuildConfiguration(
@@ -33,6 +38,8 @@ class GuildSettingsService:
             fallback_ai_enabled,
             fallback_max_sound_count,
             fallback_max_sound_storage_mb,
+            fallback_ai_conversation_scope,
+            fallback_ai_retention_days,
         )
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
@@ -52,6 +59,8 @@ class GuildSettingsService:
                 ai_enabled=current.ai_enabled,
                 max_sound_count=current.max_sound_count,
                 max_sound_storage_mb=current.max_sound_storage_mb,
+                ai_conversation_scope=current.ai_conversation_scope.value,
+                ai_retention_days=current.ai_retention_days,
             )
         return self._configuration(updated)
 
@@ -64,6 +73,8 @@ class GuildSettingsService:
                 ai_enabled=enabled,
                 max_sound_count=current.max_sound_count,
                 max_sound_storage_mb=current.max_sound_storage_mb,
+                ai_conversation_scope=current.ai_conversation_scope.value,
+                ai_retention_days=current.ai_retention_days,
             )
         return self._configuration(updated)
 
@@ -88,6 +99,8 @@ class GuildSettingsService:
                 ai_enabled=current.ai_enabled,
                 max_sound_count=max_count,
                 max_sound_storage_mb=max_storage_mb,
+                ai_conversation_scope=current.ai_conversation_scope.value,
+                ai_retention_days=current.ai_retention_days,
             )
         return self._configuration(updated)
 
@@ -101,6 +114,35 @@ class GuildSettingsService:
         settings = await self.get(guild_id)
         return settings.max_sound_count, settings.max_sound_storage_mb * 1024 * 1024
 
+    async def set_ai_conversation_policy(
+        self,
+        guild_id: int,
+        *,
+        scope: ConversationScope,
+        retention_days: int,
+    ) -> GuildConfiguration:
+        if not 1 <= retention_days <= 365:
+            raise ValidationError("AI conversation retention must be between 1 and 365 days.")
+        async with self._locks[guild_id]:
+            current = await self.get(guild_id)
+            updated = await self._repository.update(
+                guild_id,
+                default_volume=current.default_volume,
+                ai_enabled=current.ai_enabled,
+                max_sound_count=current.max_sound_count,
+                max_sound_storage_mb=current.max_sound_storage_mb,
+                ai_conversation_scope=scope.value,
+                ai_retention_days=retention_days,
+            )
+        return self._configuration(updated)
+
+    async def ai_conversation_policy_for(self, guild_id: int) -> ConversationPolicy:
+        settings = await self.get(guild_id)
+        return ConversationPolicy(
+            scope=settings.ai_conversation_scope,
+            retention_days=settings.ai_retention_days,
+        )
+
     @staticmethod
     def _configuration(settings: GuildSettings) -> GuildConfiguration:
         return GuildConfiguration(
@@ -108,4 +150,6 @@ class GuildSettingsService:
             ai_enabled=settings.ai_enabled,
             max_sound_count=settings.max_sound_count,
             max_sound_storage_mb=settings.max_sound_storage_mb,
+            ai_conversation_scope=ConversationScope(settings.ai_conversation_scope),
+            ai_retention_days=settings.ai_retention_days,
         )

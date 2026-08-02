@@ -32,8 +32,9 @@ The current implementation includes:
 - conversational responses when the bot is directly mentioned in a guild channel;
 - opt-in recent-channel summaries and an AI configuration status command;
 - bounded Groq speech recognition for validated audio and video attachments;
-- persistent per-server default volume and AI availability settings;
-- bounded AI memory, local user/guild rate limits, cooldowns, timeouts, and metadata-only usage logs;
+- persistent per-server volume, AI availability, conversation scope, and retention settings;
+- bounded and expiring AI memory, local user/guild rate limits, cooldowns, timeouts, and
+  metadata-only usage logs;
 - an ephemeral dependency health report with uptime, latency, audio-player, and command counters;
 - centralized contextual logging and sanitized global command error handling;
 - deterministic tests that do not contact Discord, Groq, OpenAI, or music platforms.
@@ -144,6 +145,8 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `MAX_SOUNDS_PER_GUILD` | No | `100`; default saved-sound count quota per server |
 | `MAX_SOUND_STORAGE_MB_PER_GUILD` | No | `500`; default converted Opus storage quota per server |
 | `MAX_SOUND_ARCHIVE_SIZE_MB` | No | `100`; hard limit for generated and restored sound ZIP files |
+| `DEFAULT_AI_CONVERSATION_SCOPE` | No | `channel`; accepts `channel`, `user`, `server`, or `none` |
+| `DEFAULT_AI_RETENTION_DAYS` | No | `30`; default persisted conversation lifetime, from 1 to 365 days |
 | `MAX_AI_CONTEXT_MESSAGES` | No | `30` |
 | `MAX_AI_RESPONSE_CHARACTERS` | No | `1800` |
 | `MAX_TRANSCRIPTION_FILE_SIZE_MB` | No | `20`; cannot exceed Groq's 25 MB free-tier limit |
@@ -193,10 +196,11 @@ available models may change, so ComradBot treats quota failures as recoverable e
 8. Test `/ai ask prompt:Olá` or send `@ComradBot olá` in a server channel.
 
 Never commit `.env` or paste the Groq key into source code, Discord, screenshots, or logs. Direct
-mentions send the text after the bot mention and the bounded conversation context for that channel
-to the selected provider. Attachments are not sent. The bounded text conversation is stored in the
-local SQLite database until `/ai reset` clears that channel; usage logs store counts and identifiers,
-not an additional copy of the conversation text.
+mentions send the text after the bot mention and the bounded conversation context selected by the
+guild policy to the provider. Attachments are not sent. Context can be scoped to a channel, user, or
+entire server, or disabled with `none`; persisted context expires according to the configured
+retention and `/ai reset` clears the active scope. Usage logs store counts and identifiers, not an
+additional copy of the conversation text.
 
 ## Running the bot
 
@@ -385,6 +389,7 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/settings show`
 - `/settings volume value:<0-100>`
 - `/settings ai enabled:<boolean>`
+- `/settings ai-memory scope:<channel | user | server | none> retention-days:<1-365>`
 - `/settings sounds max-count:<number> storage-mb:<number>`
 
 The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
@@ -411,6 +416,12 @@ Members with Manage Server permission can use `/settings`. The default volume is
 guild player is created; changing it also updates an active player immediately. Disabling AI blocks
 slash commands and direct-mention conversations for that guild without affecting music or custom
 sounds. These preferences are stored in SQLite and remain isolated by guild ID.
+
+`/settings ai-memory` changes how text conversations are shared and immediately removes the guild's
+previous stored contexts to prevent data from crossing scope boundaries. `channel` shares context
+inside one channel, `user` follows a member across channels, `server` shares one context across the
+guild, and `none` sends only the current request without persistence. Resetting server-wide memory
+requires Manage Messages or Manage Server; expired records are removed lazily during later AI use.
 
 ## AI persona
 
@@ -517,6 +528,11 @@ FFprobe without publishing the image or using real credentials.
   records contain IDs, operation names, character counts, and outcomes—not full conversation
   content. Channel summaries fetch a bounded history only on demand and are not added to persistent
   conversation memory.
+- **Configurable conversation privacy:** each guild chooses channel, user, server-wide, or stateless
+  AI context plus a 1-to-365-day retention period. Stored keys include their scope type to prevent
+  Discord ID collisions. Requests sharing one context are serialized, expired rows are purged
+  without reading their content, and a policy change invalidates in-flight persistence before
+  deleting the previous memory.
 - **Persistent guild preferences:** `GuildSettingsService` is the only business-facing access point
   for server configuration. Discord commands do not execute SQL, and audio/AI consume the settings
   through injected async lookups.

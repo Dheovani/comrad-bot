@@ -94,7 +94,7 @@ async def test_direct_mention_uses_shared_ai_conversation_scope() -> None:
 
     ai_service.ask.assert_awaited_once_with(
         guild_id=40,
-        scope_id=30,
+        channel_id=30,
         user_id=50,
         prompt="como estamos hoje?",
     )

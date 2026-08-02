@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from comradbot.ai.policy import ConversationPolicy, ConversationScope
 from comradbot.database.repositories.guild_settings import GuildSettingsRepository
 from comradbot.database.session import Database
 from comradbot.errors import ValidationError
@@ -20,6 +21,8 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
         assert (await service.get(123)).default_volume == 0.5
         assert (await service.get(123)).ai_enabled is True
         assert (await service.get(123)).max_sound_count == 100
+        assert (await service.get(123)).ai_conversation_scope is ConversationScope.CHANNEL
+        assert (await service.get(123)).ai_retention_days == 30
 
         await service.set_default_volume(123, 0.8)
         disabled = await service.set_ai_enabled(123, False)
@@ -39,6 +42,24 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
         assert await service.sound_quota_for(123) == (12, 34 * 1024 * 1024)
         with pytest.raises(ValidationError, match="count quota"):
             await service.set_sound_quotas(123, max_count=0, max_storage_mb=34)
+
+        memory = await service.set_ai_conversation_policy(
+            123,
+            scope=ConversationScope.USER,
+            retention_days=14,
+        )
+        assert memory.ai_conversation_scope is ConversationScope.USER
+        assert memory.ai_retention_days == 14
+        assert await service.ai_conversation_policy_for(123) == ConversationPolicy(
+            scope=ConversationScope.USER,
+            retention_days=14,
+        )
+        with pytest.raises(ValidationError, match="between 1 and 365"):
+            await service.set_ai_conversation_policy(
+                123,
+                scope=ConversationScope.CHANNEL,
+                retention_days=0,
+            )
     finally:
         await database.close()
 

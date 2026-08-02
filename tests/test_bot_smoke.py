@@ -37,6 +37,7 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
         assert isinstance(settings, app_commands.Group)
         assert {command.name for command in settings.commands} == {
             "ai",
+            "ai-memory",
             "show",
             "sounds",
             "volume",
