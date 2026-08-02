@@ -65,6 +65,7 @@ def sound_service(
     *,
     max_duration_seconds: int = 30,
 ) -> SoundService:
+    repository.usage.return_value = (0, 0)
     return SoundService(
         cast(SoundRepository, cast(Any, repository)),
         storage,
@@ -130,6 +131,112 @@ async def test_upload_rejects_duration_and_cleans_temporary_files(tmp_path: Path
 
     assert list(storage.guild_directory(123).iterdir()) == []
     repository.add.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_upload_enforces_count_and_converted_storage_quotas(tmp_path: Path) -> None:
+    repository = AsyncMock()
+    repository.get.return_value = None
+    repository.usage.return_value = (2, 900)
+    storage = SoundStorage(tmp_path)
+
+    async def quota(_: int) -> tuple[int, int]:
+        return 2, 1000
+
+    service = SoundService(
+        cast(SoundRepository, cast(Any, repository)),
+        storage,
+        cast(FFmpegRunner, cast(Any, FakeFFmpegRunner())),
+        max_size_bytes=1024,
+        max_duration_seconds=30,
+        quota_provider=quota,
+    )
+    with pytest.raises(ValidationError, match="limit of 2"):
+        await service.upload(
+            guild_id=123,
+            creator_id=456,
+            name="Count Limited",
+            filename="sound.wav",
+            content_type="audio/wav",
+            data=b"source",
+        )
+
+    repository.usage.return_value = (1, 990)
+    with pytest.raises(ValidationError, match="would exceed"):
+        await service.upload(
+            guild_id=123,
+            creator_id=456,
+            name="Storage Limited",
+            filename="sound.wav",
+            content_type="audio/wav",
+            data=b"source",
+        )
+    assert list(storage.guild_directory(123).iterdir()) == []
+    repository.add.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_uploads_cannot_exceed_guild_count_quota(tmp_path: Path) -> None:
+    class QuotaRepository:
+        def __init__(self) -> None:
+            self.sounds: list[CustomSound] = []
+
+        async def get(self, guild_id: int, normalized_name: str) -> CustomSound | None:
+            return next(
+                (
+                    sound
+                    for sound in self.sounds
+                    if sound.guild_id == guild_id and sound.normalized_name == normalized_name
+                ),
+                None,
+            )
+
+        async def usage(self, guild_id: int) -> tuple[int, int]:
+            sounds = [sound for sound in self.sounds if sound.guild_id == guild_id]
+            return len(sounds), sum(sound.size_bytes for sound in sounds)
+
+        async def add(self, sound: CustomSound) -> CustomSound:
+            self.sounds.append(sound)
+            return sound
+
+    async def quota(_: int) -> tuple[int, int]:
+        return 1, 1024
+
+    repository = QuotaRepository()
+    storage = SoundStorage(tmp_path)
+    service = SoundService(
+        cast(SoundRepository, cast(Any, repository)),
+        storage,
+        cast(FFmpegRunner, cast(Any, FakeFFmpegRunner())),
+        max_size_bytes=1024,
+        max_duration_seconds=30,
+        quota_provider=quota,
+    )
+
+    results = await asyncio.gather(
+        service.upload(
+            guild_id=123,
+            creator_id=456,
+            name="First",
+            filename="first.wav",
+            content_type="audio/wav",
+            data=b"first",
+        ),
+        service.upload(
+            guild_id=123,
+            creator_id=456,
+            name="Second",
+            filename="second.wav",
+            content_type="audio/wav",
+            data=b"second",
+        ),
+        return_exceptions=True,
+    )
+
+    assert sum(isinstance(result, CustomSound) for result in results) == 1
+    assert sum(isinstance(result, ValidationError) for result in results) == 1
+    assert len(repository.sounds) == 1
+    assert len(list(storage.guild_directory(123).glob("*.opus"))) == 1
 
 
 @pytest.mark.asyncio

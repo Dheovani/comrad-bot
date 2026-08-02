@@ -25,6 +25,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added optional sound categories, bounded normalized tags, metadata editing, and filter-aware
   listing and autocomplete.
 - Added migration `0003` with safe adoption of existing versioned and legacy development databases.
+- Added configurable per-guild sound count and converted-storage quotas with concurrency-safe upload
+  enforcement and migration `0004`.
 
 ## [1.0.0] — 2026-07-24
 

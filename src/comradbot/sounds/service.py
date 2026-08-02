@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from random import choice
 from tempfile import NamedTemporaryFile
@@ -34,12 +36,15 @@ class SoundService:
         *,
         max_size_bytes: int,
         max_duration_seconds: int,
+        quota_provider: Callable[[int], Awaitable[tuple[int, int]]] | None = None,
     ) -> None:
         self._repository = repository
         self._storage = storage
         self._ffmpeg = ffmpeg
         self._max_size_bytes = max_size_bytes
         self._max_duration_seconds = max_duration_seconds
+        self._quota_provider = quota_provider
+        self._upload_locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
     async def upload(
         self,
@@ -53,6 +58,30 @@ class SoundService:
         category: str | None = None,
         tags: str | None = None,
     ) -> CustomSound:
+        async with self._upload_locks[guild_id]:
+            return await self._upload_locked(
+                guild_id=guild_id,
+                creator_id=creator_id,
+                name=name,
+                filename=filename,
+                content_type=content_type,
+                data=data,
+                category=category,
+                tags=tags,
+            )
+
+    async def _upload_locked(
+        self,
+        *,
+        guild_id: int,
+        creator_id: int,
+        name: str,
+        filename: str,
+        content_type: str | None,
+        data: bytes,
+        category: str | None,
+        tags: str | None,
+    ) -> CustomSound:
         normalized = normalize_sound_name(name)
         normalized_category = normalize_sound_category(category)
         normalized_tags = normalize_sound_tags(tags)
@@ -64,6 +93,14 @@ class SoundService:
         )
         if await self._repository.get(guild_id, normalized) is not None:
             raise ValidationError("A sound with that name already exists in this server.")
+        max_count, max_storage_bytes = await self._sound_quota(guild_id)
+        sound_count, stored_bytes = await self._repository.usage(guild_id)
+        if sound_count >= max_count:
+            raise ValidationError(
+                f"This server has reached its limit of {max_count} custom sounds."
+            )
+        if stored_bytes >= max_storage_bytes:
+            raise ValidationError("This server has reached its custom sound storage quota.")
 
         sound_id = str(uuid4())
         relative = self._storage.relative_sound_path(guild_id, sound_id)
@@ -83,6 +120,9 @@ class SoundService:
                 )
             await self._ffmpeg.convert_to_opus(temporary, destination)
             converted = await self._ffmpeg.probe(destination)
+            converted_size = (await asyncio.to_thread(destination.stat)).st_size
+            if stored_bytes + converted_size > max_storage_bytes:
+                raise ValidationError("This upload would exceed the server's sound storage quota.")
             sound = CustomSound(
                 id=sound_id,
                 guild_id=guild_id,
@@ -91,7 +131,7 @@ class SoundService:
                 relative_path=relative.as_posix(),
                 creator_id=creator_id,
                 duration_seconds=converted.duration_seconds,
-                size_bytes=(await asyncio.to_thread(destination.stat)).st_size,
+                size_bytes=converted_size,
                 format="opus",
                 category=normalized_category,
                 tags_json=json.dumps(normalized_tags),
@@ -111,6 +151,11 @@ class SoundService:
         finally:
             if temporary is not None:
                 await asyncio.to_thread(temporary.unlink, missing_ok=True)
+
+    async def _sound_quota(self, guild_id: int) -> tuple[int, int]:
+        if self._quota_provider is None:
+            return 10000, 100000 * 1024 * 1024
+        return await self._quota_provider(guild_id)
 
     async def list_sounds(self, guild_id: int) -> list[CustomSound]:
         return await self._repository.list(guild_id)

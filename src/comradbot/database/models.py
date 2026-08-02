@@ -28,6 +28,8 @@ class GuildSettings(Base):
     guild_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     default_volume: Mapped[float] = mapped_column(Float, default=0.5)
     ai_enabled: Mapped[bool] = mapped_column(default=True)
+    max_sound_count: Mapped[int] = mapped_column(Integer, default=100)
+    max_sound_storage_mb: Mapped[int] = mapped_column(Integer, default=500)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

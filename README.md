@@ -140,6 +140,8 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `MAX_PLAYLIST_TRACKS` | No | `100` |
 | `MAX_SOUND_FILE_SIZE_MB` | No | `10` |
 | `MAX_SOUND_DURATION_SECONDS` | No | `30` |
+| `MAX_SOUNDS_PER_GUILD` | No | `100`; default saved-sound count quota per server |
+| `MAX_SOUND_STORAGE_MB_PER_GUILD` | No | `500`; default converted Opus storage quota per server |
 | `MAX_AI_CONTEXT_MESSAGES` | No | `30` |
 | `MAX_AI_RESPONSE_CHARACTERS` | No | `1800` |
 | `MAX_TRANSCRIPTION_FILE_SIZE_MB` | No | `20`; cannot exceed Groq's 25 MB free-tier limit |
@@ -378,6 +380,7 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/settings show`
 - `/settings volume value:<0-100>`
 - `/settings ai enabled:<boolean>`
+- `/settings sounds max-count:<number> storage-mb:<number>`
 
 The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
 available as a slash command.
@@ -473,6 +476,10 @@ FFprobe without publishing the image or using real credentials.
   appropriate for Discord voice. Physical filenames use UUIDs; logical names remain in the database.
   Sounds may have one optional category and up to ten normalized tags. Autocomplete and `/sound list`
   accept normal text plus `category:<name>` and `tag:<name>` filters without exposing physical paths.
+- **Per-guild sound quotas:** global defaults bound saved-sound count and converted Opus storage.
+  Administrators can override both through `/settings sounds`. Uploads for the same guild are
+  serialized, and quota checks run before processing and after conversion to prevent concurrent or
+  size-estimation overruns.
 - **Temporary streams:** the resolver gives ephemeral public stream URLs to FFmpeg and never stores
   third-party music permanently. Tracks that waited behind another item are re-resolved from their
   public page immediately before playback; a failed refresh is skipped without stopping the guild

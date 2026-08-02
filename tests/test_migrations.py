@@ -29,6 +29,9 @@ def test_alembic_upgrade_builds_current_schema(tmp_path: Path) -> None:
             for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
         sound_columns = {row[1] for row in connection.execute("PRAGMA table_info(custom_sounds)")}
+        settings_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(guild_settings)")
+        }
     assert {
         "ai_conversations",
         "ai_usage",
@@ -39,6 +42,7 @@ def test_alembic_upgrade_builds_current_schema(tmp_path: Path) -> None:
         "saved_tracks",
     } <= tables
     assert {"category", "tags_json"} <= sound_columns
+    assert {"max_sound_count", "max_sound_storage_mb"} <= settings_columns
 
 
 @pytest.mark.asyncio
@@ -52,7 +56,7 @@ async def test_startup_migration_upgrades_fresh_database(tmp_path: Path) -> None
 
     with sqlite3.connect(database_path) as connection:
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert revision == ("0003",)
+    assert revision == ("0004",)
 
 
 @pytest.mark.asyncio
@@ -73,7 +77,7 @@ async def test_startup_migration_adopts_complete_legacy_schema(tmp_path: Path) -
         settings = connection.execute(
             "SELECT default_volume, ai_enabled FROM guild_settings WHERE guild_id = 123"
         ).fetchone()
-    assert revision == ("0003",)
+    assert revision == ("0004",)
     assert settings == (0.7, 0)
 
 
@@ -96,7 +100,7 @@ async def test_startup_migration_adopts_versioned_hybrid_legacy_schema(tmp_path:
 
     with sqlite3.connect(database_path) as connection:
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert revision == ("0003",)
+    assert revision == ("0004",)
 
 
 @pytest.mark.asyncio
@@ -122,7 +126,7 @@ async def test_startup_migration_upgrades_known_legacy_baseline(tmp_path: Path) 
         }
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
     assert {"playlists", "saved_tracks"} <= tables
-    assert revision == ("0003",)
+    assert revision == ("0004",)
 
 
 @pytest.mark.asyncio

@@ -88,7 +88,7 @@ def build_help_embed() -> discord.Embed:
     embed.add_field(
         name="⚙️ Server settings",
         value=(
-            "`/settings show` · `/settings volume` · `/settings ai`\n"
+            "`/settings show` · `/settings volume` · `/settings ai` · `/settings sounds`\n"
             "Changing settings requires Manage Server permission."
         ),
         inline=False,

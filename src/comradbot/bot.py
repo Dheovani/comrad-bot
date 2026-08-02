@@ -59,6 +59,8 @@ class ComradBot(commands.Bot):
         self.guild_settings_service = GuildSettingsService(
             GuildSettingsRepository(self.database.sessions),
             fallback_volume=settings.default_volume,
+            fallback_max_sound_count=settings.max_sounds_per_guild,
+            fallback_max_sound_storage_mb=settings.max_sound_storage_mb_per_guild,
         )
         self.ffmpeg = FFmpegRunner()
         self.observability = ObservabilityService(
@@ -90,6 +92,7 @@ class ComradBot(commands.Bot):
             self.ffmpeg,
             max_size_bytes=settings.max_sound_file_size_mb * 1024 * 1024,
             max_duration_seconds=settings.max_sound_duration_seconds,
+            quota_provider=self.guild_settings_service.sound_quota_for,
         )
         ai_repository = AIRepository(self.database.sessions)
         provider, speech_provider, recognition_provider = build_ai_providers(settings)

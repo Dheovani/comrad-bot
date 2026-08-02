@@ -48,6 +48,13 @@ class SettingsCog(commands.Cog):
             value="Enabled" if settings.ai_enabled else "Disabled",
             inline=True,
         )
+        embed.add_field(
+            name="Custom sound quotas",
+            value=(
+                f"Count: {settings.max_sound_count}\nStorage: {settings.max_sound_storage_mb} MiB"
+            ),
+            inline=True,
+        )
         if active_player is not None:
             embed.add_field(
                 name="Current player volume",
@@ -91,6 +98,32 @@ class SettingsCog(commands.Cog):
         state = "enabled" if enabled else "disabled"
         await interaction.response.send_message(
             f"🤖 AI features are now **{state}** for this server.",
+            ephemeral=True,
+        )
+
+    @guild_settings.command(
+        name="sounds",
+        description="Set custom sound count and storage quotas for this server.",
+    )
+    @app_commands.describe(max_count="Maximum saved sounds", storage_mb="Maximum Opus storage")
+    @app_commands.rename(max_count="max-count", storage_mb="storage-mb")
+    async def sounds(
+        self,
+        interaction: discord.Interaction,
+        max_count: app_commands.Range[int, 1, 10000],
+        storage_mb: app_commands.Range[int, 1, 100000],
+    ) -> None:
+        require_manage_guild(interaction)
+        guild = require_guild(interaction)
+        settings = await self.bot.guild_settings_service.set_sound_quotas(
+            guild.id,
+            max_count=max_count,
+            max_storage_mb=storage_mb,
+        )
+        await interaction.response.send_message(
+            "🔊 Custom sound quotas set to "
+            f"**{settings.max_sound_count} sounds** and "
+            f"**{settings.max_sound_storage_mb} MiB**.",
             ephemeral=True,
         )
 

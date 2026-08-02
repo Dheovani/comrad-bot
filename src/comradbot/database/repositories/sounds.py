@@ -1,6 +1,6 @@
 """Custom sound persistence operations."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from comradbot.database.models import CustomSound
@@ -33,6 +33,17 @@ class SoundRepository:
                 .order_by(CustomSound.name)
             )
             return list(result)
+
+    async def usage(self, guild_id: int) -> tuple[int, int]:
+        async with self._sessions() as session:
+            result = await session.execute(
+                select(
+                    func.count(CustomSound.id),
+                    func.coalesce(func.sum(CustomSound.size_bytes), 0),
+                ).where(CustomSound.guild_id == guild_id)
+            )
+            count, size_bytes = result.one()
+            return int(count), int(size_bytes)
 
     async def delete(self, sound_id: str) -> bool:
         async with self._sessions.begin() as session:

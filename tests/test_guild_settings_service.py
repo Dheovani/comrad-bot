@@ -4,6 +4,7 @@ import pytest
 
 from comradbot.database.repositories.guild_settings import GuildSettingsRepository
 from comradbot.database.session import Database
+from comradbot.errors import ValidationError
 from comradbot.services.settings import GuildSettingsService
 
 
@@ -18,6 +19,7 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
     try:
         assert (await service.get(123)).default_volume == 0.5
         assert (await service.get(123)).ai_enabled is True
+        assert (await service.get(123)).max_sound_count == 100
 
         await service.set_default_volume(123, 0.8)
         disabled = await service.set_ai_enabled(123, False)
@@ -30,6 +32,13 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
         )
         assert await reloaded.get(123) == disabled
         assert await reloaded.get(456) != disabled
+
+        quotas = await service.set_sound_quotas(123, max_count=12, max_storage_mb=34)
+        assert quotas.max_sound_count == 12
+        assert quotas.max_sound_storage_mb == 34
+        assert await service.sound_quota_for(123) == (12, 34 * 1024 * 1024)
+        with pytest.raises(ValidationError, match="count quota"):
+            await service.set_sound_quotas(123, max_count=0, max_storage_mb=34)
     finally:
         await database.close()
 

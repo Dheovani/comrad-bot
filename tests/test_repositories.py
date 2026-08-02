@@ -80,11 +80,19 @@ async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
     repository = GuildSettingsRepository(database.sessions)
     try:
         assert await repository.get(123) is None
-        await repository.update(123, default_volume=0.7, ai_enabled=False)
+        await repository.update(
+            123,
+            default_volume=0.7,
+            ai_enabled=False,
+            max_sound_count=20,
+            max_sound_storage_mb=30,
+        )
         found = await repository.get(123)
         assert found is not None
         assert found.default_volume == 0.7
         assert found.ai_enabled is False
+        assert found.max_sound_count == 20
+        assert found.max_sound_storage_mb == 30
     finally:
         await database.close()
 

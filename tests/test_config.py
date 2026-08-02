@@ -67,6 +67,13 @@ def test_message_content_intent_is_opt_in() -> None:
     assert enabled.discord_message_content_intent is True
 
 
+def test_sound_quota_defaults_and_bounds_are_typed() -> None:
+    settings = Settings(_env_file=None, discord_token="test")
+
+    assert settings.max_sounds_per_guild == 100
+    assert settings.max_sound_storage_mb_per_guild == 500
+
+
 def test_custom_multiline_persona_loads_from_dotenv(tmp_path: Path) -> None:
     env_file = tmp_path / ".env"
     env_file.write_text(

@@ -16,7 +16,7 @@ selected.
 ## 2. Custom sound evolution
 
 - [x] Add optional categories, tags, and richer autocomplete filters
-- [ ] Add configurable per-guild sound count and storage quotas
+- [x] Add configurable per-guild sound count and storage quotas
 - [ ] Add moderator audit records for rename and deletion operations
 - [ ] Add bulk export and restore tools for guild-owned custom sounds
 

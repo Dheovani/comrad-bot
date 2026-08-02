@@ -20,6 +20,8 @@ class GuildSettingsRepository:
         *,
         default_volume: float,
         ai_enabled: bool,
+        max_sound_count: int,
+        max_sound_storage_mb: int,
     ) -> GuildSettings:
         async with self._sessions.begin() as session:
             result = await session.execute(
@@ -31,10 +33,14 @@ class GuildSettingsRepository:
                     guild_id=guild_id,
                     default_volume=default_volume,
                     ai_enabled=ai_enabled,
+                    max_sound_count=max_sound_count,
+                    max_sound_storage_mb=max_sound_storage_mb,
                 )
                 session.add(settings)
             else:
                 settings.default_volume = default_volume
                 settings.ai_enabled = ai_enabled
+                settings.max_sound_count = max_sound_count
+                settings.max_sound_storage_mb = max_sound_storage_mb
             await session.flush()
             return settings

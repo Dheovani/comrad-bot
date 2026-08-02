@@ -37,6 +37,7 @@ def real_sound_service(
     max_size_bytes: int = 500_000,
     max_duration_seconds: int = 30,
 ) -> SoundService:
+    repository.usage.return_value = (0, 0)
     return SoundService(
         cast(SoundRepository, cast(Any, repository)),
         storage,
