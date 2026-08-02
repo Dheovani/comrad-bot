@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from comradbot.ai.conversation import AIService, SlidingWindowLimiter
+from comradbot.ai.elevenlabs_provider import ElevenLabsSpeechProvider
 from comradbot.ai.groq_provider import GroqProvider
 from comradbot.ai.openai_provider import OpenAIProvider
 from comradbot.ai.prompts import resolve_comradbot_persona
@@ -133,6 +134,10 @@ class ComradBot(commands.Bot):
             "Provedor de IA configurado: %s",
             self.settings.configured_ai_provider or "disabled",
         )
+        logger.info(
+            "Provedor de TTS configurado: %s",
+            self.settings.configured_tts_provider or "disabled",
+        )
         await self.database.migrate()
         logger.info("Migrações do banco de dados aplicadas")
         for extension in EXTENSIONS:
@@ -202,6 +207,7 @@ def build_ai_providers(
     SpeechRecognitionProvider | None,
 ]:
     configured = settings.configured_ai_provider
+    configured_tts = settings.configured_tts_provider
     persona = resolve_comradbot_persona(settings.custom_comradbot_persona)
     groq_provider: GroqProvider | None = None
     if settings.groq_api_key is not None:
@@ -212,10 +218,10 @@ def build_ai_providers(
             persona=persona,
             timeout_seconds=settings.ai_timeout_seconds,
         )
-    if configured == "groq" and settings.groq_api_key is not None:
-        assert groq_provider is not None
-        return groq_provider, None, groq_provider
-    if configured == "openai" and settings.openai_api_key is not None:
+    openai_provider: OpenAIProvider | None = None
+    if settings.openai_api_key is not None and (
+        configured == "openai" or configured_tts == "openai"
+    ):
         openai_provider = OpenAIProvider(
             api_key=settings.openai_api_key.get_secret_value(),
             model=settings.openai_model,
@@ -224,5 +230,31 @@ def build_ai_providers(
             tts_voice=settings.openai_tts_voice,
             timeout_seconds=settings.ai_timeout_seconds,
         )
-        return openai_provider, openai_provider, groq_provider
-    return None, None, groq_provider
+    elevenlabs_provider: ElevenLabsSpeechProvider | None = None
+    if (
+        configured_tts == "elevenlabs"
+        and settings.elevenlabs_api_key is not None
+        and settings.elevenlabs_tts_voice_id is not None
+    ):
+        elevenlabs_provider = ElevenLabsSpeechProvider(
+            api_key=settings.elevenlabs_api_key.get_secret_value(),
+            model=settings.elevenlabs_tts_model,
+            voice_id=settings.elevenlabs_tts_voice_id,
+            timeout_seconds=settings.ai_timeout_seconds,
+            max_file_size_bytes=settings.max_tts_file_size_mb * 1024 * 1024,
+        )
+    provider: AIProvider | None
+    if configured == "groq":
+        provider = groq_provider
+    elif configured == "openai":
+        provider = openai_provider
+    else:
+        provider = None
+    speech_provider: SpeechProvider | None
+    if configured_tts == "elevenlabs":
+        speech_provider = elevenlabs_provider
+    elif configured_tts == "openai":
+        speech_provider = openai_provider
+    else:
+        speech_provider = None
+    return provider, speech_provider, groq_provider

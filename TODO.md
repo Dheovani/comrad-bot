@@ -26,7 +26,7 @@ selected.
 - [x] Add per-guild AI budgets and usage summaries without storing prompt content
 - [x] Evaluate additional concrete providers; retain Groq and OpenAI until another option offers a clear net cost, privacy, or capability benefit
 - [ ] Reassess live voice recognition when discord.py provides stable DAVE-compatible audio receive
-- [ ] Evaluate Portuguese-capable non-OpenAI TTS providers with official voices
+- [x] Add Portuguese-capable ElevenLabs TTS with official premade voices and a bounded free-tier path
 - [ ] Add optional AI-assisted queue and sound discovery without autonomous playback
 
 ## 4. Discord experience

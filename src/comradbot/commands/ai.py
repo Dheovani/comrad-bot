@@ -144,6 +144,13 @@ class AICog(commands.Cog):
             provider_name = "Groq"
         else:
             provider_name = "Disabled"
+        tts_provider = self.bot.settings.configured_tts_provider
+        if tts_provider == "elevenlabs":
+            speech_status = "Available (ElevenLabs)"
+        elif tts_provider == "openai":
+            speech_status = "Available (OpenAI)"
+        else:
+            speech_status = "Unavailable"
         if not guild_settings.ai_enabled:
             summary_status = "Disabled for this server"
         elif provider is None:
@@ -161,7 +168,7 @@ class AICog(commands.Cog):
         embed.add_field(
             name="Speech",
             value=(
-                "Available"
+                speech_status
                 if guild_settings.ai_enabled and self.bot.ai_service.speech_enabled
                 else "Unavailable"
             ),

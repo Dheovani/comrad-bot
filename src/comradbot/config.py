@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     alembic_directory: Path = Path("./alembic")
 
     ai_provider: Literal["auto", "openai", "groq"] = "auto"
+    tts_provider: Literal["auto", "openai", "elevenlabs"] = "auto"
     openai_api_key: SecretStr | None = None
     openai_model: str = "gpt-4.1-mini"
     openai_tts_model: str = "gpt-4o-mini-tts"
@@ -41,6 +42,9 @@ class Settings(BaseSettings):
     groq_transcription_model: Literal["whisper-large-v3", "whisper-large-v3-turbo"] = (
         "whisper-large-v3-turbo"
     )
+    elevenlabs_api_key: SecretStr | None = None
+    elevenlabs_tts_model: str = "eleven_flash_v2_5"
+    elevenlabs_tts_voice_id: str | None = None
     custom_comradbot_persona: str | None = Field(default=None, max_length=20000)
 
     data_directory: Path = Path("./data")
@@ -61,6 +65,7 @@ class Settings(BaseSettings):
     default_ai_daily_request_budget: int = Field(default=100, ge=0, le=10000)
     max_ai_context_messages: int = Field(default=30, ge=1, le=100)
     max_ai_response_characters: int = Field(default=1800, ge=200, le=2000)
+    max_tts_file_size_mb: int = Field(default=10, ge=1, le=25)
     max_transcription_file_size_mb: int = Field(default=20, ge=1, le=25)
     max_transcription_duration_seconds: int = Field(default=300, ge=1, le=3600)
     max_transcription_characters: int = Field(default=12000, ge=200, le=50000)
@@ -109,6 +114,27 @@ class Settings(BaseSettings):
         if openai_configured:
             return "openai"
         return "groq" if groq_configured else None
+
+    @property
+    def configured_tts_provider(self) -> Literal["openai", "elevenlabs"] | None:
+        openai_configured = bool(
+            self.openai_api_key and self.openai_api_key.get_secret_value().strip()
+        )
+        elevenlabs_configured = bool(
+            self.elevenlabs_api_key
+            and self.elevenlabs_api_key.get_secret_value().strip()
+            and self.elevenlabs_tts_voice_id
+            and self.elevenlabs_tts_voice_id.strip()
+        )
+        if self.tts_provider == "openai":
+            return "openai" if openai_configured else None
+        if self.tts_provider == "elevenlabs":
+            return "elevenlabs" if elevenlabs_configured else None
+        if self.configured_ai_provider == "openai" and openai_configured:
+            return "openai"
+        if elevenlabs_configured:
+            return "elevenlabs"
+        return "openai" if openai_configured else None
 
     def prepare_directories(self) -> None:
         self.data_directory.mkdir(parents=True, exist_ok=True)

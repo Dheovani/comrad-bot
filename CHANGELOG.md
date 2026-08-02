@@ -41,6 +41,9 @@ The project follows [Semantic Versioning](https://semver.org/).
   API access requires paid usage credits. No speculative SDK dependency was added.
 - Added configurable per-guild daily AI request budgets, moderator-only aggregate `/ai usage`
   reporting without prompt content, concurrency-safe reservations, and migration `0007`.
+- Added independently selectable ElevenLabs TTS using its official asynchronous SDK, Portuguese
+  language enforcement, official voice IDs, bounded Opus output, finite retries, and cleanup on
+  provider, quota, timeout, size-limit, and cancellation failures.
 
 ## [1.0.0] — 2026-07-24
 

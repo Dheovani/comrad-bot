@@ -378,8 +378,8 @@ class AIService:
     def _require_speech_provider(self) -> SpeechProvider:
         if self._speech_provider is None:
             raise AIDisabledError(
-                "O provedor de IA configurado não oferece TTS em português. "
-                "Configure a OpenAI para usar /ai speak."
+                "O TTS em português não está configurado. Configure a OpenAI ou a ElevenLabs "
+                "para usar /ai speak."
             )
         return self._speech_provider
 
@@ -426,12 +426,13 @@ class AIService:
 
     async def close(self) -> None:
         close_operations: list[Awaitable[None]] = []
-        if self._provider is not None:
-            close_operations.append(self._provider.close())
-        if self._recognition_provider is not None and id(self._recognition_provider) != id(
-            self._provider
-        ):
-            close_operations.append(self._recognition_provider.close())
+        providers = (self._provider, self._speech_provider, self._recognition_provider)
+        seen: set[int] = set()
+        for provider in providers:
+            if provider is None or id(provider) in seen:
+                continue
+            seen.add(id(provider))
+            close_operations.append(provider.close())
         if close_operations:
             await asyncio.gather(*close_operations)
 

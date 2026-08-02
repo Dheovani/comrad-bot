@@ -125,6 +125,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `ALEMBIC_CONFIG_FILE` | No | `./alembic.ini`; overridden to `/app/alembic.ini` in Docker |
 | `ALEMBIC_DIRECTORY` | No | `./alembic`; overridden to `/app/alembic` in Docker |
 | `AI_PROVIDER` | No | `auto`; accepts `auto`, `groq`, or `openai` |
+| `TTS_PROVIDER` | No | `auto`; accepts `auto`, `elevenlabs`, or `openai` |
 | `GROQ_API_KEY` | No | Enables Groq text conversations and attachment transcription |
 | `GROQ_MODEL` | No | `llama-3.3-70b-versatile` |
 | `GROQ_TRANSCRIPTION_MODEL` | No | `whisper-large-v3-turbo` |
@@ -132,6 +133,9 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `OPENAI_MODEL` | No | `gpt-4.1-mini` |
 | `OPENAI_TTS_MODEL` | No | `gpt-4o-mini-tts` |
 | `OPENAI_TTS_VOICE` | No | `coral`, an official provider voice |
+| `ELEVENLABS_API_KEY` | No | Enables ElevenLabs TTS independently of the text provider |
+| `ELEVENLABS_TTS_MODEL` | No | `eleven_flash_v2_5`, a Portuguese-capable model |
+| `ELEVENLABS_TTS_VOICE_ID` | Required for ElevenLabs TTS | ID of an official premade voice |
 | `CUSTOM_COMRADBOT_PERSONA` | No | Replaces the built-in persona when non-empty |
 | `DATA_DIRECTORY` | No | `./data` |
 | `SOUNDS_DIRECTORY` | No | `./data/sounds` |
@@ -150,6 +154,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DEFAULT_AI_DAILY_REQUEST_BUDGET` | No | `100`; requests per UTC day, or `0` for unlimited |
 | `MAX_AI_CONTEXT_MESSAGES` | No | `30` |
 | `MAX_AI_RESPONSE_CHARACTERS` | No | `1800` |
+| `MAX_TTS_FILE_SIZE_MB` | No | `10`; hard limit for generated speech output |
 | `MAX_TRANSCRIPTION_FILE_SIZE_MB` | No | `20`; cannot exceed Groq's 25 MB free-tier limit |
 | `MAX_TRANSCRIPTION_DURATION_SECONDS` | No | `300` |
 | `MAX_TRANSCRIPTION_CHARACTERS` | No | `12000` |
@@ -164,9 +169,10 @@ Container liveness timing can be adjusted with `HEARTBEAT_INTERVAL_SECONDS` and
 `HEALTHCHECK_MAX_AGE_SECONDS`. The maximum age should remain comfortably greater than the update
 interval.
 
-With `AI_PROVIDER=auto`, OpenAI is selected for text and TTS when both provider keys exist,
-preserving the previous configuration behavior. When `GROQ_API_KEY` is also present, attachment
-transcription continues to use Groq independently of the selected text provider.
+With `AI_PROVIDER=auto`, OpenAI remains the preferred text provider when both text-provider keys
+exist. TTS is selected independently: `TTS_PROVIDER=auto` preserves OpenAI TTS when OpenAI is the
+selected text provider, otherwise it prefers a fully configured ElevenLabs key and voice ID.
+Attachment transcription continues to use Groq independently of the selected text and TTS providers.
 
 ## Groq setup
 
@@ -202,6 +208,33 @@ guild policy to the provider. Attachments are not sent. Context can be scoped to
 entire server, or disabled with `none`; persisted context expires according to the configured
 retention and `/ai reset` clears the active scope. Usage logs store counts and identifiers, not an
 additional copy of the conversation text.
+
+## ElevenLabs TTS setup
+
+ElevenLabs includes API access in its rate-limited free plan and its multilingual models support
+Portuguese. ComradBot accepts only a configured voice ID and never calls voice cloning endpoints.
+
+1. Create an account at [ElevenLabs](https://elevenlabs.io/) and create a restricted API key.
+2. In the ElevenLabs voice selector, choose an official premade voice and copy its voice ID. The
+   free plan does not provide Voice Library API access, so select the voice in the dashboard.
+3. Configure `.env` while keeping Groq as the free text provider:
+
+   ```env
+   AI_PROVIDER=groq
+   GROQ_API_KEY=gsk_your_key_here
+
+   TTS_PROVIDER=elevenlabs
+   ELEVENLABS_API_KEY=your_elevenlabs_key
+   ELEVENLABS_TTS_MODEL=eleven_flash_v2_5
+   ELEVENLABS_TTS_VOICE_ID=your_official_voice_id
+   ```
+
+4. Install the updated dependencies, restart the bot, join a voice channel, and run
+   `/ai speak prompt:Olá, camarada`.
+
+The generated audio is streamed to a bounded temporary Opus file, placed in the shared guild audio
+queue, and deleted after playback. ElevenLabs credits and plan limits still apply. Review the
+provider's current data-handling terms before sending private conversation content.
 
 ## Running the bot
 
@@ -454,10 +487,10 @@ An empty or whitespace-only value falls back to the built-in `COMRADBOT_PERSONA`
 are not concatenated. Do not paste a raw, unquoted multiline prompt into `.env`, because dotenv will
 interpret its subsequent lines as separate invalid assignments.
 
-Generated speech uses only official provider voices. Groq currently provides TTS in English and
-Saudi Arabic, so `/ai speak` is intentionally unavailable when Groq is selected; OpenAI remains the
-Portuguese-capable TTS provider. The project does not support voice cloning or impersonation of real
-people.
+Generated speech uses only configured official provider voices. Groq currently provides TTS in
+English and Saudi Arabic, but Groq text can be paired with Portuguese ElevenLabs TTS. OpenAI remains
+an optional text and Portuguese TTS provider. The project does not support voice cloning or
+impersonation of real people.
 
 ## Quality checks
 
@@ -545,12 +578,15 @@ FFprobe without publishing the image or using real credentials.
   Anthropic was not added because API usage requires prepaid credits and therefore does not improve
   the project's free-provider path. Groq already supplies rate-limited free text generation and
   transcription, while OpenAI remains an optional paid route for Portuguese TTS. Reconsider another
-  adapter only if it adds a material capability, a sustainable cost advantage, and acceptable data
-  handling without weakening the provider-neutral service boundary. Sources:
+  text adapter only if it adds a material capability, a sustainable cost advantage, and acceptable
+  data handling without weakening the provider-neutral service boundary. ElevenLabs was added only
+  as a specialized speech adapter because its free API path and Portuguese models fill the concrete
+  TTS gap left by Groq. Sources:
   [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing),
   [Google Gen AI SDK](https://googleapis.github.io/python-genai/),
   [Anthropic API billing](https://support.anthropic.com/en/articles/8977456-how-do-i-pay-for-my-api-usage),
-  and [Groq rate limits](https://console.groq.com/docs/rate-limits).
+  [Groq rate limits](https://console.groq.com/docs/rate-limits), and
+  [ElevenLabs API pricing](https://help.elevenlabs.io/hc/en-us/articles/28184926326033-How-much-does-it-cost-to-use-the-API).
 - **Configurable conversation privacy:** each guild chooses channel, user, server-wide, or stateless
   AI context plus a 1-to-365-day retention period. Stored keys include their scope type to prevent
   Discord ID collisions. Requests sharing one context are serialized, expired rows are purged
@@ -595,8 +631,8 @@ FFprobe without publishing the image or using real credentials.
 - There is no simultaneous mixing or automatic resume after interruption; both were evaluated and
   intentionally excluded from the final single-source player design.
 - Playlist playback resolves tracks sequentially and does not import platform-native playlists.
-- Groq mode supports text conversations but not `/ai speak`; its hosted TTS models do not support
-  Portuguese.
+- Groq's hosted TTS models do not support Portuguese; pair Groq text with ElevenLabs TTS or use
+  OpenAI for `/ai speak`.
 - Speech recognition works only with explicit attachments; the bot does not record or monitor voice
   channels. Groq free-plan quotas and the configured local limits still apply.
 - SQLite is intended for a single local instance. Distributed deployment requires a different

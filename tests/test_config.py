@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from comradbot.ai.elevenlabs_provider import ElevenLabsSpeechProvider
 from comradbot.ai.groq_provider import GroqProvider
 from comradbot.ai.openai_provider import OpenAIProvider
 from comradbot.ai.policy import ConversationScope
@@ -106,6 +107,26 @@ async def test_groq_selection_builds_text_and_recognition_provider() -> None:
     assert speech_provider is None
     assert recognition_provider is provider
     await provider.close()
+
+
+@pytest.mark.asyncio
+async def test_groq_text_can_use_elevenlabs_speech_independently() -> None:
+    settings = Settings(
+        _env_file=None,
+        discord_token="test",
+        ai_provider="groq",
+        groq_api_key="groq-key",
+        elevenlabs_api_key="elevenlabs-key",
+        elevenlabs_tts_voice_id="official-voice-id",
+    )
+
+    provider, speech_provider, recognition_provider = build_ai_providers(settings)
+
+    assert isinstance(provider, GroqProvider)
+    assert isinstance(speech_provider, ElevenLabsSpeechProvider)
+    assert recognition_provider is provider
+    await provider.close()
+    await speech_provider.close()
 
 
 @pytest.mark.asyncio
