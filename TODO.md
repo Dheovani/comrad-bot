@@ -23,7 +23,7 @@ selected.
 ## 3. AI and voice evolution
 
 - [x] Add configurable conversation scope and retention policies per guild
-- [ ] Add per-guild AI budgets and usage summaries without storing prompt content
+- [x] Add per-guild AI budgets and usage summaries without storing prompt content
 - [ ] Evaluate additional concrete providers only when they offer a clear cost or capability benefit
 - [ ] Reassess live voice recognition when discord.py provides stable DAVE-compatible audio receive
 - [ ] Evaluate Portuguese-capable non-OpenAI TTS providers with official voices

@@ -24,6 +24,7 @@ class GuildSettingsRepository:
         max_sound_storage_mb: int,
         ai_conversation_scope: str,
         ai_retention_days: int,
+        ai_daily_request_budget: int,
     ) -> GuildSettings:
         async with self._sessions.begin() as session:
             result = await session.execute(
@@ -39,6 +40,7 @@ class GuildSettingsRepository:
                     max_sound_storage_mb=max_sound_storage_mb,
                     ai_conversation_scope=ai_conversation_scope,
                     ai_retention_days=ai_retention_days,
+                    ai_daily_request_budget=ai_daily_request_budget,
                 )
                 session.add(settings)
             else:
@@ -48,5 +50,6 @@ class GuildSettingsRepository:
                 settings.max_sound_storage_mb = max_sound_storage_mb
                 settings.ai_conversation_scope = ai_conversation_scope
                 settings.ai_retention_days = ai_retention_days
+                settings.ai_daily_request_budget = ai_daily_request_budget
             await session.flush()
             return settings

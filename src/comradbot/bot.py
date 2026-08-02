@@ -63,6 +63,7 @@ class ComradBot(commands.Bot):
             fallback_max_sound_storage_mb=settings.max_sound_storage_mb_per_guild,
             fallback_ai_conversation_scope=settings.default_ai_conversation_scope,
             fallback_ai_retention_days=settings.default_ai_retention_days,
+            fallback_ai_daily_request_budget=settings.default_ai_daily_request_budget,
         )
         self.ffmpeg = FFmpegRunner()
         self.observability = ObservabilityService(
@@ -120,6 +121,7 @@ class ComradBot(commands.Bot):
             max_transcription_characters=settings.max_transcription_characters,
             guild_ai_enabled=self.guild_settings_service.ai_enabled_for,
             conversation_policy_provider=self.guild_settings_service.ai_conversation_policy_for,
+            daily_budget_provider=self.guild_settings_service.ai_daily_request_budget_for,
         )
         self.tree.error(self.on_app_command_error)
 

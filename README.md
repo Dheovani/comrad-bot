@@ -34,7 +34,7 @@ The current implementation includes:
 - bounded Groq speech recognition for validated audio and video attachments;
 - persistent per-server volume, AI availability, conversation scope, and retention settings;
 - bounded and expiring AI memory, local user/guild rate limits, cooldowns, timeouts, and
-  metadata-only usage logs;
+  configurable daily budgets, and metadata-only usage summaries;
 - an ephemeral dependency health report with uptime, latency, audio-player, and command counters;
 - centralized contextual logging and sanitized global command error handling;
 - deterministic tests that do not contact Discord, Groq, OpenAI, or music platforms.
@@ -147,6 +147,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `MAX_SOUND_ARCHIVE_SIZE_MB` | No | `100`; hard limit for generated and restored sound ZIP files |
 | `DEFAULT_AI_CONVERSATION_SCOPE` | No | `channel`; accepts `channel`, `user`, `server`, or `none` |
 | `DEFAULT_AI_RETENTION_DAYS` | No | `30`; default persisted conversation lifetime, from 1 to 365 days |
+| `DEFAULT_AI_DAILY_REQUEST_BUDGET` | No | `100`; requests per UTC day, or `0` for unlimited |
 | `MAX_AI_CONTEXT_MESSAGES` | No | `30` |
 | `MAX_AI_RESPONSE_CHARACTERS` | No | `1800` |
 | `MAX_TRANSCRIPTION_FILE_SIZE_MB` | No | `20`; cannot exceed Groq's 25 MB free-tier limit |
@@ -386,10 +387,12 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/ai transcribe file:<attachment>`
 - `/ai speak prompt:<text>`
 - `/ai status`
+- `/ai usage days:<1-30>` (moderators only)
 - `/settings show`
 - `/settings volume value:<0-100>`
 - `/settings ai enabled:<boolean>`
 - `/settings ai-memory scope:<channel | user | server | none> retention-days:<1-365>`
+- `/settings ai-budget daily-requests:<0-10000>`
 - `/settings sounds max-count:<number> storage-mb:<number>`
 
 The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
@@ -422,6 +425,14 @@ previous stored contexts to prevent data from crossing scope boundaries. `channe
 inside one channel, `user` follows a member across channels, `server` shares one context across the
 guild, and `none` sends only the current request without persistence. Resetting server-wide memory
 requires Manage Messages or Manage Server; expired records are removed lazily during later AI use.
+
+`/settings ai-budget` limits validated AI operations per UTC day for the guild; `0` disables this
+daily cap while the existing minute limits and cooldown remain active. A request is reserved before
+contacting the provider, so failed provider or media-processing attempts also consume one unit.
+Moderators can inspect 1 to 30 days of aggregate activity with `/ai usage`. The report contains
+request counts, success/failure totals, character counts, and operation names, never prompts,
+responses, attachments, API keys, or provider payloads. Character counts are operational indicators,
+not token counts or monetary cost estimates.
 
 ## AI persona
 
@@ -533,6 +544,11 @@ FFprobe without publishing the image or using real credentials.
   Discord ID collisions. Requests sharing one context are serialized, expired rows are purged
   without reading their content, and a policy change invalidates in-flight persistence before
   deleting the previous memory.
+- **Provider-neutral AI budgets:** a persisted per-guild daily request cap is enforced through an
+  in-process serialized reservation followed by a metadata-only completion update. This prevents
+  simultaneous calls in the supported single-instance deployment from exceeding the cap. Usage
+  summaries deliberately report requests and characters instead of inaccurate provider-independent
+  token or currency estimates.
 - **Persistent guild preferences:** `GuildSettingsService` is the only business-facing access point
   for server configuration. Discord commands do not execute SQL, and audio/AI consume the settings
   through injected async lookups.

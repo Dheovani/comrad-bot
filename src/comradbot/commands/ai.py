@@ -195,12 +195,62 @@ class AICog(commands.Cog):
                 f"{self.bot.settings.ai_user_requests_per_minute} request(s)/minute per user\n"
                 f"{self.bot.settings.ai_guild_requests_per_minute} request(s)/minute per server\n"
                 f"{self.bot.settings.ai_cooldown_seconds:g}s user cooldown\n"
-                f"{self.bot.settings.max_ai_context_messages} context message(s) maximum"
+                f"{self.bot.settings.max_ai_context_messages} context message(s) maximum\n"
+                f"Daily budget: "
+                f"{guild_settings.ai_daily_request_budget or 'unlimited'}"
             ),
             inline=False,
         )
         embed.set_footer(text="No API keys or conversation content are displayed.")
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @ai.command(name="usage", description="Show this server's recent aggregate AI usage.")
+    async def usage(
+        self,
+        interaction: discord.Interaction,
+        days: app_commands.Range[int, 1, 30] = 1,
+    ) -> None:
+        guild = require_guild(interaction)
+        if not isinstance(interaction.user, discord.Member) or not (
+            interaction.user.guild_permissions.manage_messages
+            or interaction.user.guild_permissions.manage_guild
+        ):
+            raise PermissionDeniedError(
+                "You need Manage Messages or Manage Server to view AI usage."
+            )
+        summary = await self.bot.ai_service.usage_summary(guild.id, days=days)
+        settings = await self.bot.guild_settings_service.get(guild.id)
+        operations = (
+            "\n".join(f"{item.operation}: {item.requests}" for item in summary.operations)
+            or "No requests"
+        )
+        budget = (
+            "Unlimited"
+            if settings.ai_daily_request_budget == 0
+            else f"{settings.ai_daily_request_budget} request(s) per UTC day"
+        )
+        await interaction.response.send_message(
+            embed=discord.Embed(title=f"AI usage — last {days} day(s)", color=0xD13C3C)
+            .add_field(name="Requests", value=str(summary.total_requests), inline=True)
+            .add_field(name="Successful", value=str(summary.successful_requests), inline=True)
+            .add_field(
+                name="Failed",
+                value=str(summary.total_requests - summary.successful_requests),
+                inline=True,
+            )
+            .add_field(name="Characters sent", value=str(summary.input_characters), inline=True)
+            .add_field(
+                name="Characters returned",
+                value=str(summary.output_characters),
+                inline=True,
+            )
+            .add_field(name="Configured budget", value=budget, inline=False)
+            .add_field(name="By operation", value=operations, inline=False)
+            .set_footer(
+                text="Aggregates only; prompts and responses are not stored in usage logs."
+            ),
+            ephemeral=True,
+        )
 
     @ai.command(name="transcribe", description="Transcribe a supported audio attachment.")
     @app_commands.describe(file="Audio or video file containing speech.")

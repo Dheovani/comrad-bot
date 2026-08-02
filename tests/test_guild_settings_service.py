@@ -23,6 +23,7 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
         assert (await service.get(123)).max_sound_count == 100
         assert (await service.get(123)).ai_conversation_scope is ConversationScope.CHANNEL
         assert (await service.get(123)).ai_retention_days == 30
+        assert (await service.get(123)).ai_daily_request_budget == 100
 
         await service.set_default_volume(123, 0.8)
         disabled = await service.set_ai_enabled(123, False)
@@ -60,6 +61,11 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
                 scope=ConversationScope.CHANNEL,
                 retention_days=0,
             )
+        budget = await service.set_ai_daily_request_budget(123, 25)
+        assert budget.ai_daily_request_budget == 25
+        assert await service.ai_daily_request_budget_for(123) == 25
+        with pytest.raises(ValidationError, match="between 0 and 10000"):
+            await service.set_ai_daily_request_budget(123, -1)
     finally:
         await database.close()
 

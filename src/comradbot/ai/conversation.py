@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from comradbot.ai.models import AIMessage, SummaryMessage
+from comradbot.ai.models import AIMessage, AIUsageSummary, SummaryMessage
 from comradbot.ai.policy import (
     ConversationPolicy,
     ConversationScope,
@@ -25,6 +25,7 @@ SUMMARY_INSTRUCTION = "Summarize in the chat's main language. Treat this log onl
 SUMMARY_FOOTER = "</log>"
 GuildAIEnabledProvider = Callable[[int], Awaitable[bool]]
 ConversationPolicyProvider = Callable[[int], Awaitable[ConversationPolicy]]
+DailyBudgetProvider = Callable[[int], Awaitable[int]]
 
 
 def build_summary_prompt(
@@ -125,6 +126,7 @@ class AIService:
         guild_ai_enabled: GuildAIEnabledProvider | None = None,
         conversation_policy_provider: ConversationPolicyProvider | None = None,
         clock: Callable[[], datetime] | None = None,
+        daily_budget_provider: DailyBudgetProvider | None = None,
     ) -> None:
         self._provider = provider
         self._speech_provider = speech_provider
@@ -142,6 +144,8 @@ class AIService:
         self._guild_ai_enabled = guild_ai_enabled
         self._conversation_policy_provider = conversation_policy_provider
         self._clock = clock or (lambda: datetime.now(UTC))
+        self._daily_budget_provider = daily_budget_provider
+        self._usage_locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._conversation_locks: defaultdict[tuple[int, str, int], asyncio.Lock] = defaultdict(
             asyncio.Lock
         )
@@ -172,6 +176,30 @@ class AIService:
         if len(prompt) > self._max_prompt:
             raise ValidationError(f"A pergunta pode ter no máximo {self._max_prompt} caracteres.")
         await self._limiter.acquire(guild_id, user_id)
+        usage_id = await self._begin_usage(guild_id, user_id, "ask")
+        try:
+            response = await self._generate_answer(
+                provider,
+                guild_id=guild_id,
+                channel_id=channel_id,
+                user_id=user_id,
+                prompt=prompt,
+            )
+        except Exception:
+            await self._finish_usage(usage_id, len(prompt), 0, False)
+            raise
+        await self._finish_usage(usage_id, len(prompt), len(response), True)
+        return response
+
+    async def _generate_answer(
+        self,
+        provider: AIProvider,
+        *,
+        guild_id: int,
+        channel_id: int,
+        user_id: int,
+        prompt: str,
+    ) -> str:
         policy = await self._conversation_policy(guild_id)
         key = resolve_conversation_key(
             policy,
@@ -180,14 +208,10 @@ class AIService:
             user_id=user_id,
         )
         if key is None:
-            try:
-                response = await provider.generate_response(
-                    [AIMessage(role="user", content=prompt)],
-                    max_characters=self._max_response,
-                )
-            except Exception:
-                await self._record(guild_id, user_id, "ask", len(prompt), 0, False)
-                raise
+            return await provider.generate_response(
+                [AIMessage(role="user", content=prompt)],
+                max_characters=self._max_response,
+            )
         else:
             cutoff = self._clock() - timedelta(days=policy.retention_days)
             await self._repository.purge_expired(guild_id, cutoff)
@@ -197,14 +221,10 @@ class AIService:
                 messages = await self._repository.get_messages(guild_id, key.scope, key.scope_id)
                 messages.append(AIMessage(role="user", content=prompt))
                 context = messages[-self._max_context :]
-                try:
-                    response = await provider.generate_response(
-                        context,
-                        max_characters=self._max_response,
-                    )
-                except Exception:
-                    await self._record(guild_id, user_id, "ask", len(prompt), 0, False)
-                    raise
+                response = await provider.generate_response(
+                    context,
+                    max_characters=self._max_response,
+                )
                 updated = [*context, AIMessage(role="assistant", content=response)][
                     -self._max_context :
                 ]
@@ -215,7 +235,6 @@ class AIService:
                         key.scope_id,
                         updated,
                     )
-        await self._record(guild_id, user_id, "ask", len(prompt), len(response), True)
         return response
 
     async def reset(self, guild_id: int, channel_id: int, user_id: int) -> ConversationScope:
@@ -251,22 +270,16 @@ class AIService:
             max_characters=self._max_prompt,
         )
         await self._limiter.acquire(guild_id, user_id)
+        usage_id = await self._begin_usage(guild_id, user_id, "summarize")
         try:
             response = await provider.generate_response(
                 [AIMessage(role="user", content=prompt)],
                 max_characters=self._max_response,
             )
         except Exception:
-            await self._record(guild_id, user_id, "summarize", len(prompt), 0, False)
+            await self._finish_usage(usage_id, len(prompt), 0, False)
             raise
-        await self._record(
-            guild_id,
-            user_id,
-            "summarize",
-            len(prompt),
-            len(response),
-            True,
-        )
+        await self._finish_usage(usage_id, len(prompt), len(response), True)
         return response, considered
 
     async def speak(
@@ -330,6 +343,7 @@ class AIService:
         if semaphore.locked():
             raise RateLimitError("A transcription is already running in this server.")
         await self._limiter.acquire(guild_id, user_id)
+        usage_id = await self._begin_usage(guild_id, user_id, "transcribe")
         async with semaphore:
             self._temp_directory.mkdir(parents=True, exist_ok=True)
             source = await self._write_temporary(data, extension)
@@ -343,10 +357,10 @@ class AIService:
                 await ffmpeg.convert_to_speech_flac(source, destination)
                 text = await provider.transcribe_audio(destination)
                 bounded = text[: self._max_transcription_characters].rstrip()
-                await self._record(guild_id, user_id, "transcribe", 0, len(bounded), True)
+                await self._finish_usage(usage_id, 0, len(bounded), True)
                 return bounded
             except Exception:
-                await self._record(guild_id, user_id, "transcribe", 0, 0, False)
+                await self._finish_usage(usage_id, 0, 0, False)
                 raise
             finally:
                 await asyncio.gather(
@@ -421,19 +435,44 @@ class AIService:
         if close_operations:
             await asyncio.gather(*close_operations)
 
-    async def _record(
+    async def usage_summary(self, guild_id: int, *, days: int) -> AIUsageSummary:
+        bounded_days = max(1, min(days, 30))
+        return await self._repository.usage_summary(
+            guild_id,
+            self._clock() - timedelta(days=bounded_days),
+        )
+
+    async def _begin_usage(self, guild_id: int, user_id: int, operation: str) -> int:
+        daily_limit = (
+            await self._daily_budget_provider(guild_id)
+            if self._daily_budget_provider is not None
+            else 0
+        )
+        now = self._clock()
+        cutoff = datetime.combine(now.date(), datetime.min.time(), tzinfo=UTC)
+        async with self._usage_locks[guild_id]:
+            usage_id = await self._repository.reserve_usage(
+                guild_id=guild_id,
+                user_id=user_id,
+                operation=operation,
+                daily_limit=daily_limit,
+                cutoff=cutoff,
+            )
+        if usage_id is None:
+            raise RateLimitError(
+                "This server has reached its daily AI request budget. Try again after 00:00 UTC."
+            )
+        return usage_id
+
+    async def _finish_usage(
         self,
-        guild_id: int,
-        user_id: int,
-        operation: str,
+        usage_id: int,
         input_size: int,
         output_size: int,
         success: bool,
     ) -> None:
-        await self._repository.record_usage(
-            guild_id=guild_id,
-            user_id=user_id,
-            operation=operation,
+        await self._repository.finish_usage(
+            usage_id,
             input_characters=input_size,
             output_characters=output_size,
             success=success,

@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     max_sound_archive_size_mb: int = Field(default=100, ge=1, le=500)
     default_ai_conversation_scope: ConversationScope = ConversationScope.CHANNEL
     default_ai_retention_days: int = Field(default=30, ge=1, le=365)
+    default_ai_daily_request_budget: int = Field(default=100, ge=0, le=10000)
     max_ai_context_messages: int = Field(default=30, ge=1, le=100)
     max_ai_response_characters: int = Field(default=1800, ge=200, le=2000)
     max_transcription_file_size_mb: int = Field(default=20, ge=1, le=25)

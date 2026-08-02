@@ -40,7 +40,10 @@ class InspectingRecognitionProvider:
 
 
 class FakeRepository:
-    async def record_usage(self, **kwargs: object) -> None:
+    async def reserve_usage(self, **kwargs: object) -> int:
+        return 1
+
+    async def finish_usage(self, usage_id: int, **kwargs: object) -> None:
         return None
 
 

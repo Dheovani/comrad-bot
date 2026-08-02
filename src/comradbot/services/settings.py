@@ -18,6 +18,7 @@ class GuildConfiguration:
     max_sound_storage_mb: int
     ai_conversation_scope: ConversationScope
     ai_retention_days: int
+    ai_daily_request_budget: int
 
 
 class GuildSettingsService:
@@ -31,6 +32,7 @@ class GuildSettingsService:
         fallback_max_sound_storage_mb: int = 500,
         fallback_ai_conversation_scope: ConversationScope = ConversationScope.CHANNEL,
         fallback_ai_retention_days: int = 30,
+        fallback_ai_daily_request_budget: int = 100,
     ) -> None:
         self._repository = repository
         self._fallback = GuildConfiguration(
@@ -40,6 +42,7 @@ class GuildSettingsService:
             fallback_max_sound_storage_mb,
             fallback_ai_conversation_scope,
             fallback_ai_retention_days,
+            fallback_ai_daily_request_budget,
         )
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
@@ -61,6 +64,7 @@ class GuildSettingsService:
                 max_sound_storage_mb=current.max_sound_storage_mb,
                 ai_conversation_scope=current.ai_conversation_scope.value,
                 ai_retention_days=current.ai_retention_days,
+                ai_daily_request_budget=current.ai_daily_request_budget,
             )
         return self._configuration(updated)
 
@@ -75,6 +79,7 @@ class GuildSettingsService:
                 max_sound_storage_mb=current.max_sound_storage_mb,
                 ai_conversation_scope=current.ai_conversation_scope.value,
                 ai_retention_days=current.ai_retention_days,
+                ai_daily_request_budget=current.ai_daily_request_budget,
             )
         return self._configuration(updated)
 
@@ -101,6 +106,7 @@ class GuildSettingsService:
                 max_sound_storage_mb=max_storage_mb,
                 ai_conversation_scope=current.ai_conversation_scope.value,
                 ai_retention_days=current.ai_retention_days,
+                ai_daily_request_budget=current.ai_daily_request_budget,
             )
         return self._configuration(updated)
 
@@ -133,6 +139,7 @@ class GuildSettingsService:
                 max_sound_storage_mb=current.max_sound_storage_mb,
                 ai_conversation_scope=scope.value,
                 ai_retention_days=retention_days,
+                ai_daily_request_budget=current.ai_daily_request_budget,
             )
         return self._configuration(updated)
 
@@ -143,6 +150,30 @@ class GuildSettingsService:
             retention_days=settings.ai_retention_days,
         )
 
+    async def set_ai_daily_request_budget(
+        self,
+        guild_id: int,
+        daily_requests: int,
+    ) -> GuildConfiguration:
+        if not 0 <= daily_requests <= 10000:
+            raise ValidationError("The daily AI request budget must be between 0 and 10000.")
+        async with self._locks[guild_id]:
+            current = await self.get(guild_id)
+            updated = await self._repository.update(
+                guild_id,
+                default_volume=current.default_volume,
+                ai_enabled=current.ai_enabled,
+                max_sound_count=current.max_sound_count,
+                max_sound_storage_mb=current.max_sound_storage_mb,
+                ai_conversation_scope=current.ai_conversation_scope.value,
+                ai_retention_days=current.ai_retention_days,
+                ai_daily_request_budget=daily_requests,
+            )
+        return self._configuration(updated)
+
+    async def ai_daily_request_budget_for(self, guild_id: int) -> int:
+        return (await self.get(guild_id)).ai_daily_request_budget
+
     @staticmethod
     def _configuration(settings: GuildSettings) -> GuildConfiguration:
         return GuildConfiguration(
@@ -152,4 +183,5 @@ class GuildSettingsService:
             max_sound_storage_mb=settings.max_sound_storage_mb,
             ai_conversation_scope=ConversationScope(settings.ai_conversation_scope),
             ai_retention_days=settings.ai_retention_days,
+            ai_daily_request_budget=settings.ai_daily_request_budget,
         )

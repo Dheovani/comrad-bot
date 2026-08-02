@@ -32,6 +32,7 @@ class GuildSettings(Base):
     max_sound_storage_mb: Mapped[int] = mapped_column(Integer, default=500)
     ai_conversation_scope: Mapped[str] = mapped_column(String(20), default="channel")
     ai_retention_days: Mapped[int] = mapped_column(Integer, default=30)
+    ai_daily_request_budget: Mapped[int] = mapped_column(Integer, default=100)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

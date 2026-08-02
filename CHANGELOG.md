@@ -36,6 +36,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 - Added per-guild channel, user, server-wide, and stateless conversation scopes with configurable
   1-to-365-day retention, expiry cleanup, safe scope transitions, and migration `0006`.
+- Added configurable per-guild daily AI request budgets, moderator-only aggregate `/ai usage`
+  reporting without prompt content, concurrency-safe reservations, and migration `0007`.
 
 ## [1.0.0] — 2026-07-24
 

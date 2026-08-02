@@ -58,6 +58,15 @@ class SettingsCog(commands.Cog):
             inline=True,
         )
         embed.add_field(
+            name="Daily AI request budget",
+            value=(
+                "Unlimited"
+                if settings.ai_daily_request_budget == 0
+                else str(settings.ai_daily_request_budget)
+            ),
+            inline=True,
+        )
+        embed.add_field(
             name="Custom sound quotas",
             value=(
                 f"Count: {settings.max_sound_count}\nStorage: {settings.max_sound_storage_mb} MiB"
@@ -134,6 +143,33 @@ class SettingsCog(commands.Cog):
             f"**{settings.ai_conversation_scope.value}** scope with "
             f"**{settings.ai_retention_days} day(s)** retention. "
             "Previous conversation memory was removed.",
+            ephemeral=True,
+        )
+
+    @guild_settings.command(
+        name="ai-budget",
+        description="Set the daily UTC AI request budget for this server.",
+    )
+    @app_commands.describe(daily_requests="0 disables the daily budget")
+    @app_commands.rename(daily_requests="daily-requests")
+    async def ai_budget(
+        self,
+        interaction: discord.Interaction,
+        daily_requests: app_commands.Range[int, 0, 10000],
+    ) -> None:
+        require_manage_guild(interaction)
+        guild = require_guild(interaction)
+        settings = await self.bot.guild_settings_service.set_ai_daily_request_budget(
+            guild.id,
+            daily_requests,
+        )
+        value = (
+            "unlimited"
+            if settings.ai_daily_request_budget == 0
+            else f"{settings.ai_daily_request_budget} request(s)"
+        )
+        await interaction.response.send_message(
+            f"📊 Daily AI budget set to **{value}**; the window resets at 00:00 UTC.",
             ephemeral=True,
         )
 

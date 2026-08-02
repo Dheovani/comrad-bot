@@ -76,6 +76,7 @@ def test_sound_quota_defaults_and_bounds_are_typed() -> None:
     assert settings.max_sound_archive_size_mb == 100
     assert settings.default_ai_conversation_scope is ConversationScope.CHANNEL
     assert settings.default_ai_retention_days == 30
+    assert settings.default_ai_daily_request_budget == 100
 
 
 def test_custom_multiline_persona_loads_from_dotenv(tmp_path: Path) -> None:

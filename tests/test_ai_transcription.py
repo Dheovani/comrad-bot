@@ -45,9 +45,17 @@ class FakeFFmpeg:
 class FakeRepository:
     def __init__(self) -> None:
         self.usage: list[dict[str, object]] = []
+        self.reservations: dict[int, dict[str, object]] = {}
 
-    async def record_usage(self, **kwargs: object) -> None:
-        self.usage.append(kwargs)
+    async def reserve_usage(self, **kwargs: object) -> int:
+        kwargs.pop("daily_limit")
+        kwargs.pop("cutoff")
+        usage_id = len(self.usage) + 1
+        self.reservations[usage_id] = kwargs
+        return usage_id
+
+    async def finish_usage(self, usage_id: int, **kwargs: object) -> None:
+        self.usage.append({**self.reservations.pop(usage_id), **kwargs})
 
 
 def build_service(

@@ -74,7 +74,7 @@ def build_help_embed() -> discord.Embed:
         name="🤖 AI",
         value=(
             "`/ai ask` · `/ai reset` · `/ai summarize` · `/ai transcribe`\n"
-            "`/ai speak` · `/ai status`\n"
+            "`/ai speak` · `/ai status` · `/ai usage`\n"
             "AI commands require a configured provider; audio features work without one."
         ),
         inline=False,
@@ -91,7 +91,7 @@ def build_help_embed() -> discord.Embed:
         name="⚙️ Server settings",
         value=(
             "`/settings show` · `/settings volume` · `/settings ai`\n"
-            "`/settings ai-memory` · `/settings sounds`\n"
+            "`/settings ai-memory` · `/settings ai-budget` · `/settings sounds`\n"
             "Changing settings requires Manage Server permission."
         ),
         inline=False,

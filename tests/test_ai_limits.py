@@ -31,6 +31,7 @@ class FakeRepository:
         self.get_calls: list[tuple[int, ConversationScope, int]] = []
         self.save_calls: list[tuple[int, ConversationScope, int]] = []
         self.purge_calls = 0
+        self.reservations: dict[int, dict[str, object]] = {}
 
     async def get_messages(
         self, guild_id: int, scope: ConversationScope, scope_id: int
@@ -54,8 +55,17 @@ class FakeRepository:
         self.purge_calls += 1
         return 0
 
-    async def record_usage(self, **kwargs) -> None:  # type: ignore[no-untyped-def]
-        self.usage.append(kwargs)
+    async def reserve_usage(self, **kwargs) -> int | None:  # type: ignore[no-untyped-def]
+        daily_limit = kwargs.pop("daily_limit")
+        kwargs.pop("cutoff")
+        if daily_limit > 0 and len(self.usage) + len(self.reservations) >= daily_limit:
+            return None
+        usage_id = len(self.usage) + len(self.reservations) + 1
+        self.reservations[usage_id] = kwargs
+        return usage_id
+
+    async def finish_usage(self, usage_id: int, **kwargs) -> None:  # type: ignore[no-untyped-def]
+        self.usage.append({**self.reservations.pop(usage_id), **kwargs})
 
 
 @pytest.mark.asyncio
@@ -193,6 +203,33 @@ async def test_guild_memory_reset_prevents_in_flight_response_from_restoring_con
     release.set()
     assert await request == "response"
     assert repository.save_calls == []
+
+
+@pytest.mark.asyncio
+async def test_daily_budget_blocks_requests_before_provider_call(tmp_path: Path) -> None:
+    provider = FakeProvider()
+    repository = FakeRepository()
+
+    async def daily_budget(guild_id: int) -> int:
+        return 1
+
+    service = AIService(
+        provider,
+        None,
+        repository,  # type: ignore[arg-type]
+        SlidingWindowLimiter(user_limit=3, guild_limit=3),
+        max_context_messages=3,
+        max_prompt_characters=20,
+        max_response_characters=20,
+        temp_directory=tmp_path,
+        daily_budget_provider=daily_budget,
+    )
+
+    await service.ask(guild_id=1, channel_id=2, user_id=3, prompt="first")
+    provider.seen = []
+    with pytest.raises(RateLimitError, match="daily AI request budget"):
+        await service.ask(guild_id=1, channel_id=2, user_id=4, prompt="second")
+    assert provider.seen == []
 
 
 def test_summary_prompt_prioritizes_recent_messages_and_stays_bounded() -> None:

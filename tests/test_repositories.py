@@ -94,6 +94,40 @@ async def test_ai_repository_trims_only_what_service_provides(tmp_path: Path) ->
             output_characters=3,
             success=True,
         )
+        cutoff = datetime.now(UTC) - timedelta(days=1)
+        reservation = await repository.reserve_usage(
+            guild_id=1,
+            user_id=4,
+            operation="summarize",
+            daily_limit=2,
+            cutoff=cutoff,
+        )
+        assert reservation is not None
+        assert (
+            await repository.reserve_usage(
+                guild_id=1,
+                user_id=5,
+                operation="ask",
+                daily_limit=2,
+                cutoff=cutoff,
+            )
+            is None
+        )
+        await repository.finish_usage(
+            reservation,
+            input_characters=10,
+            output_characters=20,
+            success=False,
+        )
+        usage = await repository.usage_summary(1, cutoff)
+        assert usage.total_requests == 2
+        assert usage.successful_requests == 1
+        assert usage.input_characters == 12
+        assert usage.output_characters == 23
+        assert [(item.operation, item.requests) for item in usage.operations] == [
+            ("ask", 1),
+            ("summarize", 1),
+        ]
         await repository.reset(1, ConversationScope.CHANNEL, 2)
         assert await repository.get_messages(1, ConversationScope.CHANNEL, 2) == []
         assert await repository.get_messages(1, ConversationScope.USER, 2) == user_messages
@@ -123,6 +157,7 @@ async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
             max_sound_storage_mb=30,
             ai_conversation_scope="user",
             ai_retention_days=14,
+            ai_daily_request_budget=55,
         )
         found = await repository.get(123)
         assert found is not None
@@ -132,6 +167,7 @@ async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
         assert found.max_sound_storage_mb == 30
         assert found.ai_conversation_scope == "user"
         assert found.ai_retention_days == 14
+        assert found.ai_daily_request_budget == 55
     finally:
         await database.close()
 
