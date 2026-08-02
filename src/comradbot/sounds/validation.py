@@ -25,6 +25,8 @@ SUPPORTED_MIME_TYPES = {
 }
 GENERIC_MIME_TYPES = {"application/octet-stream", "binary/octet-stream"}
 _VALID_NAME = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,48}[a-z0-9])?$")
+_VALID_METADATA = re.compile(r"^[\w -]+$", re.UNICODE)
+MAX_SOUND_TAGS = 10
 
 
 def normalize_sound_name(name: str) -> str:
@@ -35,6 +37,35 @@ def normalize_sound_name(name: str) -> str:
     if not normalized or not _VALID_NAME.fullmatch(normalized):
         raise ValidationError("Use a name with 1 to 50 letters, numbers, hyphens, or underscores.")
     return normalized
+
+
+def normalize_sound_category(category: str | None) -> str | None:
+    if category is None or not category.strip():
+        return None
+    normalized = " ".join(category.split())
+    if len(normalized) > 30 or not _VALID_METADATA.fullmatch(normalized):
+        raise ValidationError(
+            "Categories use at most 30 letters, numbers, spaces, hyphens, or underscores."
+        )
+    return normalized
+
+
+def normalize_sound_tags(tags: str | None) -> tuple[str, ...]:
+    if tags is None or not tags.strip():
+        return ()
+    normalized: list[str] = []
+    for raw_tag in tags.split(","):
+        tag = " ".join(raw_tag.casefold().split())
+        if not tag or len(tag) > 24 or not _VALID_METADATA.fullmatch(tag):
+            raise ValidationError(
+                "Tags must be comma-separated values of at most 24 letters, numbers, spaces, "
+                "hyphens, or underscores."
+            )
+        if tag not in normalized:
+            normalized.append(tag)
+    if len(normalized) > MAX_SOUND_TAGS:
+        raise ValidationError(f"A sound can have at most {MAX_SOUND_TAGS} tags.")
+    return tuple(normalized)
 
 
 def validate_upload_metadata(

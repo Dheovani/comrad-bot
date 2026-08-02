@@ -20,6 +20,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Documented final decisions to retain single-source playback, explicit requeue after interruption,
   and provider-neutral individual playlist references.
 
+### Custom sounds
+
+- Added optional sound categories, bounded normalized tags, metadata editing, and filter-aware
+  listing and autocomplete.
+- Added migration `0003` with safe adoption of existing versioned and legacy development databases.
+
 ## [1.0.0] — 2026-07-24
 
 ComradBot 1.0.0 is the first complete release for private Discord servers. It delivers a shared

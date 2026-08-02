@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from random import choice
 from tempfile import NamedTemporaryFile
@@ -16,7 +17,12 @@ from comradbot.database.models import CustomSound
 from comradbot.database.repositories.sounds import SoundRepository
 from comradbot.errors import PermissionDeniedError, ValidationError
 from comradbot.sounds.storage import SoundStorage
-from comradbot.sounds.validation import normalize_sound_name, validate_upload_metadata
+from comradbot.sounds.validation import (
+    normalize_sound_category,
+    normalize_sound_name,
+    normalize_sound_tags,
+    validate_upload_metadata,
+)
 
 
 class SoundService:
@@ -44,8 +50,12 @@ class SoundService:
         filename: str,
         content_type: str | None,
         data: bytes,
+        category: str | None = None,
+        tags: str | None = None,
     ) -> CustomSound:
         normalized = normalize_sound_name(name)
+        normalized_category = normalize_sound_category(category)
+        normalized_tags = normalize_sound_tags(tags)
         extension = validate_upload_metadata(
             filename=filename,
             content_type=content_type,
@@ -83,6 +93,8 @@ class SoundService:
                 duration_seconds=converted.duration_seconds,
                 size_bytes=(await asyncio.to_thread(destination.stat)).st_size,
                 format="opus",
+                category=normalized_category,
+                tags_json=json.dumps(normalized_tags),
             )
             try:
                 return await self._repository.add(sound)
@@ -104,16 +116,43 @@ class SoundService:
         return await self._repository.list(guild_id)
 
     async def search(self, guild_id: int, current: str, *, limit: int = 25) -> list[CustomSound]:
-        query = current.strip().casefold()
+        text_query, category, tag = self._parse_search(current)
         sounds = await self._repository.list(guild_id)
         matches = (
             sound
             for sound in sounds
-            if not query
-            or query in sound.name.casefold()
-            or query in sound.normalized_name.casefold()
+            if (category is None or (sound.category or "").casefold() == category)
+            and (tag is None or tag in sound.tags)
+            and (
+                not text_query
+                or text_query
+                in " ".join(
+                    (sound.name, sound.normalized_name, sound.category or "", *sound.tags)
+                ).casefold()
+            )
         )
         return list(matches)[: max(0, min(limit, 25))]
+
+    async def update_metadata(
+        self,
+        guild_id: int,
+        name: str,
+        actor_id: int,
+        *,
+        category: str | None,
+        tags: str | None,
+        is_moderator: bool,
+    ) -> CustomSound:
+        sound = await self._require_sound(guild_id, name)
+        self._ensure_can_modify(sound, actor_id, is_moderator)
+        updated = await self._repository.update_metadata(
+            sound.id,
+            category=normalize_sound_category(category),
+            tags_json=json.dumps(normalize_sound_tags(tags)),
+        )
+        if updated is None:
+            raise ValidationError("The sound was deleted before its metadata could be updated.")
+        return updated
 
     async def get(self, guild_id: int, name: str) -> CustomSound:
         return await self._require_sound(guild_id, name)
@@ -184,6 +223,20 @@ class SoundService:
         if sound is None:
             raise ValidationError("Custom sound not found.")
         return sound
+
+    @staticmethod
+    def _parse_search(query: str) -> tuple[str, str | None, str | None]:
+        terms: list[str] = []
+        category: str | None = None
+        tag: str | None = None
+        for token in query.casefold().split():
+            if token.startswith("category:") and len(token) > len("category:"):
+                category = token.removeprefix("category:")
+            elif token.startswith("tag:") and len(token) > len("tag:"):
+                tag = token.removeprefix("tag:")
+            else:
+                terms.append(token)
+        return " ".join(terms), category, tag
 
     @staticmethod
     def _ensure_can_modify(sound: CustomSound, actor_id: int, is_moderator: bool) -> None:

@@ -361,11 +361,12 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/music playlist move name:<name> from-position:<number> to-position:<number>`
 - `/music playlist rename name:<name> new-name:<new-name>`
 - `/music playlist delete name:<name>`
-- `/sound upload name:<name> file:<attachment>`
+- `/sound upload name:<name> file:<attachment> category:<optional> tags:<comma-separated>`
 - `/sound play name:<name> interrupt:<boolean>`
-- `/sound list`
+- `/sound list filter:<text | category:name | tag:name>`
 - `/sound info name:<name>`
 - `/sound random`
+- `/sound metadata name:<name> category:<optional> tags:<comma-separated>`
 - `/sound rename name:<name> new-name:<new-name>`
 - `/sound delete name:<name>`
 - `/ai ask prompt:<text>`
@@ -470,6 +471,8 @@ FFprobe without publishing the image or using real credentials.
   discards the interrupted item; users can queue it again manually.
 - **Internal Opus format:** accepted uploads are converted to 96 kbps Opus, which is compact and
   appropriate for Discord voice. Physical filenames use UUIDs; logical names remain in the database.
+  Sounds may have one optional category and up to ten normalized tags. Autocomplete and `/sound list`
+  accept normal text plus `category:<name>` and `tag:<name>` filters without exposing physical paths.
 - **Temporary streams:** the resolver gives ephemeral public stream URLs to FFmpeg and never stores
   third-party music permanently. Tracks that waited behind another item are re-resolved from their
   public page immediately before playback; a failed refresh is skipped without stopping the guild

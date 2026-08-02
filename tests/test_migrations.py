@@ -5,7 +5,7 @@ import pytest
 from alembic.config import Config
 
 from alembic import command
-from comradbot.database.migrations import BASELINE_TABLES
+from comradbot.database.migrations import BASELINE_COLUMNS, BASELINE_TABLES
 from comradbot.database.models import Base, GuildSettings
 from comradbot.database.session import Database
 from comradbot.errors import DatabaseMigrationError
@@ -28,6 +28,7 @@ def test_alembic_upgrade_builds_current_schema(tmp_path: Path) -> None:
             row[0]
             for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
+        sound_columns = {row[1] for row in connection.execute("PRAGMA table_info(custom_sounds)")}
     assert {
         "ai_conversations",
         "ai_usage",
@@ -37,6 +38,7 @@ def test_alembic_upgrade_builds_current_schema(tmp_path: Path) -> None:
         "playlists",
         "saved_tracks",
     } <= tables
+    assert {"category", "tags_json"} <= sound_columns
 
 
 @pytest.mark.asyncio
@@ -50,7 +52,7 @@ async def test_startup_migration_upgrades_fresh_database(tmp_path: Path) -> None
 
     with sqlite3.connect(database_path) as connection:
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert revision == ("0002",)
+    assert revision == ("0003",)
 
 
 @pytest.mark.asyncio
@@ -71,7 +73,7 @@ async def test_startup_migration_adopts_complete_legacy_schema(tmp_path: Path) -
         settings = connection.execute(
             "SELECT default_volume, ai_enabled FROM guild_settings WHERE guild_id = 123"
         ).fetchone()
-    assert revision == ("0002",)
+    assert revision == ("0003",)
     assert settings == (0.7, 0)
 
 
@@ -94,21 +96,20 @@ async def test_startup_migration_adopts_versioned_hybrid_legacy_schema(tmp_path:
 
     with sqlite3.connect(database_path) as connection:
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
-    assert revision == ("0002",)
+    assert revision == ("0003",)
 
 
 @pytest.mark.asyncio
 async def test_startup_migration_upgrades_known_legacy_baseline(tmp_path: Path) -> None:
     database_path = tmp_path / "legacy-baseline.db"
     database = Database(f"sqlite+aiosqlite:///{database_path.as_posix()}")
-    baseline_tables = [Base.metadata.tables[name] for name in sorted(BASELINE_TABLES)]
     async with database.engine.begin() as connection:
-        await connection.run_sync(
-            lambda sync_connection: Base.metadata.create_all(
-                sync_connection,
-                tables=baseline_tables,
+        for table_name in sorted(BASELINE_TABLES):
+            columns = BASELINE_COLUMNS[table_name]
+            definitions = ", ".join(
+                f"{column} INTEGER" if column == "id" else f"{column} TEXT" for column in columns
             )
-        )
+            await connection.exec_driver_sql(f"CREATE TABLE {table_name} ({definitions})")
     try:
         await database.migrate()
     finally:
@@ -121,7 +122,7 @@ async def test_startup_migration_upgrades_known_legacy_baseline(tmp_path: Path) 
         }
         revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
     assert {"playlists", "saved_tracks"} <= tables
-    assert revision == ("0002",)
+    assert revision == ("0003",)
 
 
 @pytest.mark.asyncio

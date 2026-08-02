@@ -8,6 +8,7 @@ from discord.ext import commands
 
 from comradbot.audio.models import AudioItem
 from comradbot.commands.helpers import connect_player_to_user, require_guild
+from comradbot.database.models import CustomSound
 from comradbot.errors import PermissionDeniedError, ValidationError
 
 if TYPE_CHECKING:
@@ -22,7 +23,12 @@ class SoundsCog(commands.Cog):
 
     @sound.command(name="upload", description="Upload a custom sound.")
     async def upload(
-        self, interaction: discord.Interaction, name: str, file: discord.Attachment
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        file: discord.Attachment,
+        category: str | None = None,
+        tags: str | None = None,
     ) -> None:
         guild = require_guild(interaction)
         if not interaction.permissions.attach_files:
@@ -38,6 +44,8 @@ class SoundsCog(commands.Cog):
             filename=file.filename,
             content_type=file.content_type,
             data=data,
+            category=category,
+            tags=tags,
         )
         await interaction.followup.send(
             f"✅ Sound **{sound.name}** saved as Opus ({sound.duration_seconds:.1f}s).",
@@ -68,14 +76,21 @@ class SoundsCog(commands.Cog):
         await self._enqueue_sound(interaction, guild.id, item, interrupt=False)
         await interaction.followup.send(f"🎲 The committee selected **{item.title}**.")
 
-    @sound.command(name="list", description="List this server's custom sounds.")
-    async def list_sounds(self, interaction: discord.Interaction) -> None:
+    @sound.command(name="list", description="List or filter this server's custom sounds.")
+    @app_commands.describe(filter_query="Text, category:<name>, or tag:<name>")
+    @app_commands.rename(filter_query="filter")
+    async def list_sounds(
+        self,
+        interaction: discord.Interaction,
+        filter_query: str | None = None,
+    ) -> None:
         guild = require_guild(interaction)
-        sounds = await self.bot.sound_service.list_sounds(guild.id)
-        description = "\n".join(
-            f"• **{sound.name}** — {sound.duration_seconds:.1f}s ({sound.play_count} plays)"
-            for sound in sounds
+        sounds = (
+            await self.bot.sound_service.search(guild.id, filter_query)
+            if filter_query
+            else await self.bot.sound_service.list_sounds(guild.id)
         )
+        description = "\n".join(self._sound_summary(sound) for sound in sounds)
         await interaction.response.send_message(
             embed=discord.Embed(
                 title="🔊 Custom sounds",
@@ -93,6 +108,8 @@ class SoundsCog(commands.Cog):
         embed.add_field(name="Format", value=sound.format.upper())
         embed.add_field(name="Size", value=f"{sound.size_bytes / 1024:.1f} KiB")
         embed.add_field(name="Plays", value=str(sound.play_count))
+        embed.add_field(name="Category", value=sound.category or "Uncategorized")
+        embed.add_field(name="Tags", value=", ".join(sound.tags) or "None")
         embed.add_field(name="Created by", value=f"<@{sound.creator_id}>")
         embed.add_field(
             name="Created at",
@@ -123,6 +140,38 @@ class SoundsCog(commands.Cog):
 
     @rename.autocomplete("name")
     async def rename_name_autocomplete(
+        self, interaction: discord.Interaction, current: str
+    ) -> list[app_commands.Choice[str]]:
+        return await self._sound_choices(interaction, current)
+
+    @sound.command(name="metadata", description="Set a sound's optional category and tags.")
+    @app_commands.describe(
+        category="Blank removes the category",
+        tags="Comma-separated; blank removes tags",
+    )
+    async def metadata(
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        category: str | None = None,
+        tags: str | None = None,
+    ) -> None:
+        guild = require_guild(interaction)
+        sound = await self.bot.sound_service.update_metadata(
+            guild.id,
+            name,
+            interaction.user.id,
+            category=category,
+            tags=tags,
+            is_moderator=self._is_moderator(interaction),
+        )
+        await interaction.response.send_message(
+            f"🏷️ Metadata updated for **{sound.name}**.",
+            ephemeral=True,
+        )
+
+    @metadata.autocomplete("name")
+    async def metadata_name_autocomplete(
         self, interaction: discord.Interaction, current: str
     ) -> list[app_commands.Choice[str]]:
         return await self._sound_choices(interaction, current)
@@ -166,7 +215,23 @@ class SoundsCog(commands.Cog):
         if interaction.guild_id is None:
             return []
         sounds = await self.bot.sound_service.search(interaction.guild_id, current)
-        return [app_commands.Choice(name=sound.name, value=sound.name) for sound in sounds]
+        return [
+            app_commands.Choice(name=self._sound_choice_label(sound), value=sound.name)
+            for sound in sounds
+        ]
+
+    @staticmethod
+    def _sound_choice_label(sound: CustomSound) -> str:
+        metadata = " · ".join(part for part in (sound.category, ", ".join(sound.tags)) if part)
+        return f"{sound.name} — {metadata}"[:100] if metadata else sound.name[:100]
+
+    @staticmethod
+    def _sound_summary(sound: CustomSound) -> str:
+        metadata = " · ".join(part for part in (sound.category, ", ".join(sound.tags)) if part)
+        suffix = f" · {metadata}" if metadata else ""
+        return (
+            f"• **{sound.name}** — {sound.duration_seconds:.1f}s ({sound.play_count} plays){suffix}"
+        )
 
     @staticmethod
     def _is_moderator(interaction: discord.Interaction) -> bool:

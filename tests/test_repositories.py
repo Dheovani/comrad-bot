@@ -28,6 +28,8 @@ async def test_sound_repository_round_trip(tmp_path: Path) -> None:
         duration_seconds=1.5,
         size_bytes=100,
         format="opus",
+        category="Memes",
+        tags_json='["loud"]',
     )
     try:
         await repository.add(sound)
@@ -36,6 +38,8 @@ async def test_sound_repository_round_trip(tmp_path: Path) -> None:
         await repository.increment_play_count(sound.id)
         found = await repository.get(123, "risada")
         assert found is not None and found.play_count == 1
+        assert found.category == "Memes"
+        assert found.tags == ("loud",)
         renamed = await repository.rename(sound.id, name="Air Horn", normalized_name="air-horn")
         assert renamed is not None and renamed.name == "Air Horn"
         assert await repository.get(123, "risada") is None

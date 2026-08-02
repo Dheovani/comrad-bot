@@ -53,6 +53,8 @@ def custom_sound(
         size_bytes=100,
         format="opus",
         play_count=0,
+        category=None,
+        tags_json="[]",
     )
 
 
@@ -88,6 +90,8 @@ async def test_upload_converts_persists_and_removes_source_file(tmp_path: Path) 
         filename="horn.wav",
         content_type="audio/wav",
         data=b"fake-wave",
+        category="Memes",
+        tags="loud, victory",
     )
 
     destination = storage.absolute_path(sound.relative_path)
@@ -95,6 +99,8 @@ async def test_upload_converts_persists_and_removes_source_file(tmp_path: Path) 
     assert sound.normalized_name == "air-horn"
     assert sound.duration_seconds == 1.5
     assert sound.size_bytes == len(b"converted-opus")
+    assert sound.category == "Memes"
+    assert sound.tags == ("loud", "victory")
     assert len(ffmpeg.converted) == 1
     assert not ffmpeg.converted[0][0].exists()
     repository.add.assert_awaited_once()
@@ -280,3 +286,64 @@ async def test_search_filters_names_and_respects_discord_choice_limit(
     assert len(await service.search(123, "alert")) == 25
     matches = await service.search(123, "Alert 2")
     assert all("Alert 2" in sound.name for sound in matches)
+
+
+@pytest.mark.asyncio
+async def test_search_filters_category_and_tags(tmp_path: Path) -> None:
+    repository = AsyncMock()
+    meme = custom_sound(name="Air Horn", normalized_name="air-horn")
+    meme.category = "Memes"
+    meme.tags_json = '["loud", "victory"]'
+    ambient = custom_sound(
+        sound_id="c6156fdb-3366-4424-82c4-f830d46a4796",
+        name="Rain",
+        normalized_name="rain",
+    )
+    ambient.category = "Ambient"
+    ambient.tags_json = '["calm"]'
+    repository.list.return_value = [meme, ambient]
+    service = sound_service(repository, SoundStorage(tmp_path), FakeFFmpegRunner())
+
+    assert await service.search(123, "category:memes") == [meme]
+    assert await service.search(123, "tag:calm") == [ambient]
+    assert await service.search(123, "tag:loud horn") == [meme]
+
+
+@pytest.mark.asyncio
+async def test_update_metadata_enforces_ownership_and_persists_normalized_values(
+    tmp_path: Path,
+) -> None:
+    sound = custom_sound()
+    updated = custom_sound()
+    updated.category = "Reactions"
+    updated.tags_json = '["loud", "win"]'
+    repository = AsyncMock()
+    repository.get.return_value = sound
+    repository.update_metadata.return_value = updated
+    service = sound_service(repository, SoundStorage(tmp_path), FakeFFmpegRunner())
+
+    with pytest.raises(PermissionDeniedError):
+        await service.update_metadata(
+            123,
+            sound.name,
+            actor_id=999,
+            category="Reactions",
+            tags="loud, win",
+            is_moderator=False,
+        )
+
+    result = await service.update_metadata(
+        123,
+        sound.name,
+        actor_id=sound.creator_id,
+        category=" Reactions ",
+        tags="LOUD, win, loud",
+        is_moderator=False,
+    )
+
+    assert result.tags == ("loud", "win")
+    repository.update_metadata.assert_awaited_once_with(
+        sound.id,
+        category="Reactions",
+        tags_json='["loud", "win"]',
+    )

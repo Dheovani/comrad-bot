@@ -102,12 +102,13 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "delete",
             "info",
             "list",
+            "metadata",
             "play",
             "random",
             "rename",
             "upload",
         }
-        for command_name in ("delete", "info", "play", "rename"):
+        for command_name in ("delete", "info", "metadata", "play", "rename"):
             command = sound.get_command(command_name)
             assert isinstance(command, app_commands.Command)
             name_parameter = next(

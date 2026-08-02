@@ -1,5 +1,6 @@
 """SQLAlchemy persistence models."""
 
+import json
 from datetime import datetime
 
 from sqlalchemy import (
@@ -51,6 +52,18 @@ class CustomSound(Base):
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     format: Mapped[str] = mapped_column(String(20), nullable=False)
     play_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    category: Mapped[str | None] = mapped_column(String(30))
+    tags_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+
+    @property
+    def tags(self) -> tuple[str, ...]:
+        try:
+            decoded = json.loads(self.tags_json)
+        except (TypeError, json.JSONDecodeError):
+            return ()
+        if not isinstance(decoded, list):
+            return ()
+        return tuple(tag for tag in decoded if isinstance(tag, str))
 
 
 class Playlist(Base):

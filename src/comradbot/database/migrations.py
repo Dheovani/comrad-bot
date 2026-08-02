@@ -21,6 +21,39 @@ BASELINE_TABLES = {
     "custom_sounds",
     "guild_settings",
 }
+BASELINE_COLUMNS = {
+    "guild_settings": frozenset(
+        {"guild_id", "default_volume", "ai_enabled", "created_at", "updated_at"}
+    ),
+    "custom_sounds": frozenset(
+        {
+            "id",
+            "guild_id",
+            "name",
+            "normalized_name",
+            "relative_path",
+            "creator_id",
+            "created_at",
+            "duration_seconds",
+            "size_bytes",
+            "format",
+            "play_count",
+        }
+    ),
+    "ai_conversations": frozenset({"id", "guild_id", "scope_id", "messages_json", "updated_at"}),
+    "ai_usage": frozenset(
+        {
+            "id",
+            "guild_id",
+            "user_id",
+            "operation",
+            "input_characters",
+            "output_characters",
+            "success",
+            "created_at",
+        }
+    ),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +120,7 @@ class MigrationRunner:
             command.stamp(config, "head")
             return
         if application_tables == BASELINE_TABLES:
-            self._validate_known_columns(state, frozenset(BASELINE_TABLES))
+            self._validate_columns(state, BASELINE_COLUMNS)
             command.stamp(config, BASELINE_REVISION)
             command.upgrade(config, "head")
             return
@@ -102,8 +135,17 @@ class MigrationRunner:
 
     @staticmethod
     def _validate_known_columns(state: SchemaState, tables: frozenset[str]) -> None:
-        for table in tables:
-            expected = frozenset(Base.metadata.tables[table].columns.keys())
+        expected_columns = {
+            table: frozenset(Base.metadata.tables[table].columns.keys()) for table in tables
+        }
+        MigrationRunner._validate_columns(state, expected_columns)
+
+    @staticmethod
+    def _validate_columns(
+        state: SchemaState,
+        expected_columns: dict[str, frozenset[str]],
+    ) -> None:
+        for table, expected in expected_columns.items():
             if state.columns.get(table) != expected:
                 raise DatabaseMigrationError(
                     f"The unversioned database table '{table}' does not match the known schema. "

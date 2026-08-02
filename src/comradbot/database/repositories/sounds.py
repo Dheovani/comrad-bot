@@ -51,6 +51,21 @@ class SoundRepository:
             sound.normalized_name = normalized_name
         return sound
 
+    async def update_metadata(
+        self,
+        sound_id: str,
+        *,
+        category: str | None,
+        tags_json: str,
+    ) -> CustomSound | None:
+        async with self._sessions.begin() as session:
+            sound = await session.get(CustomSound, sound_id)
+            if sound is None:
+                return None
+            sound.category = category
+            sound.tags_json = tags_json
+        return sound
+
     async def increment_play_count(self, sound_id: str) -> None:
         async with self._sessions.begin() as session:
             sound = await session.get(CustomSound, sound_id)
