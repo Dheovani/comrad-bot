@@ -36,6 +36,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 - Added per-guild channel, user, server-wide, and stateless conversation scopes with configurable
   1-to-365-day retention, expiry cleanup, safe scope transitions, and migration `0006`.
+- Evaluated Gemini and Anthropic as additional text providers and retained the existing Groq/OpenAI
+  adapters: Gemini's free tier permits product-improvement use of submitted content, while Anthropic
+  API access requires paid usage credits. No speculative SDK dependency was added.
 - Added configurable per-guild daily AI request budgets, moderator-only aggregate `/ai usage`
   reporting without prompt content, concurrency-safe reservations, and migration `0007`.
 

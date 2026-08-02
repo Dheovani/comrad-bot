@@ -24,7 +24,7 @@ selected.
 
 - [x] Add configurable conversation scope and retention policies per guild
 - [x] Add per-guild AI budgets and usage summaries without storing prompt content
-- [ ] Evaluate additional concrete providers only when they offer a clear cost or capability benefit
+- [x] Evaluate additional concrete providers; retain Groq and OpenAI until another option offers a clear net cost, privacy, or capability benefit
 - [ ] Reassess live voice recognition when discord.py provides stable DAVE-compatible audio receive
 - [ ] Evaluate Portuguese-capable non-OpenAI TTS providers with official voices
 - [ ] Add optional AI-assisted queue and sound discovery without autonomous playback

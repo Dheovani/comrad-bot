@@ -539,6 +539,18 @@ FFprobe without publishing the image or using real credentials.
   records contain IDs, operation names, character counts, and outcomes—not full conversation
   content. Channel summaries fetch a bounded history only on demand and are not added to persistent
   conversation memory.
+- **Additional AI provider evaluation (August 2026):** Gemini was not added despite its official
+  asynchronous Python SDK and free API tier because Google states that free-tier content may be used
+  to improve its products, which is an unfavorable default for conversations from a private server.
+  Anthropic was not added because API usage requires prepaid credits and therefore does not improve
+  the project's free-provider path. Groq already supplies rate-limited free text generation and
+  transcription, while OpenAI remains an optional paid route for Portuguese TTS. Reconsider another
+  adapter only if it adds a material capability, a sustainable cost advantage, and acceptable data
+  handling without weakening the provider-neutral service boundary. Sources:
+  [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing),
+  [Google Gen AI SDK](https://googleapis.github.io/python-genai/),
+  [Anthropic API billing](https://support.anthropic.com/en/articles/8977456-how-do-i-pay-for-my-api-usage),
+  and [Groq rate limits](https://console.groq.com/docs/rate-limits).
 - **Configurable conversation privacy:** each guild chooses channel, user, server-wide, or stateless
   AI context plus a 1-to-365-day retention period. Stored keys include their scope type to prevent
   Discord ID collisions. Requests sharing one context are serialized, expired rows are purged
