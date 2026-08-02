@@ -4,6 +4,14 @@ All notable changes to ComradBot are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Operations and security
+
+- Added monthly Dependabot updates for Python, Docker, and GitHub Actions dependencies.
+- Added scheduled Trivy scanning for high and critical container vulnerabilities with SARIF uploads.
+- Added release metadata validation and checksummed Docker deployment bundles to release automation.
+
 ## [1.0.0] — 2026-07-24
 
 ComradBot 1.0.0 is the first complete release for private Discord servers. It delivers a shared

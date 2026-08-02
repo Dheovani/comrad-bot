@@ -317,8 +317,11 @@ docker compose up -d
 
 Published container images are built only from GitHub Releases. The release workflow derives
 immutable semantic-version tags such as `1.0.0` and `1.0`, updates `latest` for stable releases, and
-attaches OCI metadata, provenance, and an SBOM. Docker Hub credentials are stored only as the
-`DOCKER_USERNAME` Actions variable and `DOCKER_TOKEN` Actions secret.
+attaches OCI metadata, provenance, and an SBOM. It rejects tags that disagree with `pyproject.toml`
+or lack a matching `CHANGELOG.md` section. Each release also receives a checksummed
+`comradbot-<version>-docker.zip` containing `.env.example` and `compose.production.yaml`. Docker Hub
+credentials are stored only as the `DOCKER_USERNAME` Actions variable and `DOCKER_TOKEN` Actions
+secret.
 
 Back up the volume while the bot is stopped:
 

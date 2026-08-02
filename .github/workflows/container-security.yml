@@ -1,0 +1,72 @@
+name: Container security
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Dockerfile
+      - pyproject.toml
+      - src/**
+      - alembic/**
+      - alembic.ini
+      - .github/workflows/container-security.yml
+  schedule:
+    - cron: "41 5 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: container-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Scan container
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image for scanning
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: comradbot:security-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate Trivy SARIF report
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: comradbot:security-scan
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: comradbot-container
+
+      - name: Enforce vulnerability threshold
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: comradbot:security-scan
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

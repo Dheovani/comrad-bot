@@ -45,9 +45,9 @@ selected.
 
 ## Operations and releases
 
-- [ ] Publish the prepared versioned multi-platform container image through the GitHub 1.0.0 release
-- [ ] Add container vulnerability scanning and dependency update automation
-- [ ] Add changelog validation and non-container build artifacts to the release workflow
+- [x] Publish the prepared versioned multi-platform container image through the GitHub 1.0.0 release
+- [x] Add container vulnerability scanning and dependency update automation
+- [x] Add changelog validation and a checksummed Docker deployment bundle to the release workflow
 - [ ] Add external monitoring integration for long-running hosted deployments
 - [ ] Document one supported 24/7 hosting target with persistent-volume requirements
 

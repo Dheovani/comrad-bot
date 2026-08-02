@@ -12,7 +12,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: publish-container-${{ github.event.release.tag_name || inputs.tag }}
@@ -29,6 +29,22 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Validate release metadata
+        id: release
+        shell: bash
+        run: |
+          version="$(python scripts/validate_release.py '${{ github.event.release.tag_name || inputs.tag }}')"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Docker deployment bundle
+        shell: bash
+        run: |
+          bundle_directory="comradbot-${{ steps.release.outputs.version }}-docker"
+          mkdir "$bundle_directory"
+          cp .env.example compose.production.yaml "$bundle_directory/"
+          zip -r "${bundle_directory}.zip" "$bundle_directory"
+          sha256sum "${bundle_directory}.zip" > "${bundle_directory}.zip.sha256"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -70,3 +86,13 @@ jobs:
           sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Upload Docker deployment bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release upload '${{ github.event.release.tag_name || inputs.tag }}' \
+            "comradbot-${{ steps.release.outputs.version }}-docker.zip" \
+            "comradbot-${{ steps.release.outputs.version }}-docker.zip.sha256" \
+            --clobber
