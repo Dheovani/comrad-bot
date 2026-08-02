@@ -22,6 +22,7 @@ from comradbot.database.repositories.guild_settings import GuildSettingsReposito
 from comradbot.database.session import Database
 from comradbot.errors import ComradBotError, PermissionDeniedError
 from comradbot.logging import log_context
+from comradbot.services.discovery import AudioDiscoveryService
 from comradbot.services.heartbeat import HeartbeatService
 from comradbot.services.music import PlaylistService
 from comradbot.services.observability import ObservabilityService
@@ -123,6 +124,12 @@ class ComradBot(commands.Bot):
             guild_ai_enabled=self.guild_settings_service.ai_enabled_for,
             conversation_policy_provider=self.guild_settings_service.ai_conversation_policy_for,
             daily_budget_provider=self.guild_settings_service.ai_daily_request_budget_for,
+        )
+        self.audio_discovery_service = AudioDiscoveryService(
+            self.ai_service,
+            self.audio_manager,
+            self.sound_service,
+            max_items=settings.max_ai_discovery_items,
         )
         self.tree.error(self.on_app_command_error)
 

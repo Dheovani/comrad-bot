@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     default_ai_daily_request_budget: int = Field(default=100, ge=0, le=10000)
     max_ai_context_messages: int = Field(default=30, ge=1, le=100)
     max_ai_response_characters: int = Field(default=1800, ge=200, le=2000)
+    max_ai_discovery_items: int = Field(default=40, ge=2, le=100)
     max_tts_file_size_mb: int = Field(default=10, ge=1, le=25)
     max_transcription_file_size_mb: int = Field(default=20, ge=1, le=25)
     max_transcription_duration_seconds: int = Field(default=300, ge=1, le=3600)

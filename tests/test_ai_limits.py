@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from comradbot.ai.conversation import AIService, SlidingWindowLimiter, build_summary_prompt
+from comradbot.ai.discovery import DiscoveryCandidate
 from comradbot.ai.models import AIMessage, SummaryMessage
 from comradbot.ai.policy import ConversationPolicy, ConversationScope
 from comradbot.errors import AIDisabledError, RateLimitError, ValidationError
@@ -323,6 +324,36 @@ async def test_ai_service_rejects_empty_summary_without_provider_call(tmp_path: 
     with pytest.raises(ValidationError, match="no eligible messages"):
         await service.summarize(guild_id=1, user_id=3, messages=[])
     assert provider.seen == []
+
+
+@pytest.mark.asyncio
+async def test_ai_service_discovers_without_persisting_conversation(tmp_path: Path) -> None:
+    provider = FakeProvider()
+    repository = FakeRepository()
+    repository.messages = [AIMessage(role="user", content="existing conversation")]
+    service = AIService(
+        provider,
+        provider,
+        repository,  # type: ignore[arg-type]
+        SlidingWindowLimiter(user_limit=3, guild_limit=3),
+        max_context_messages=2,
+        max_prompt_characters=500,
+        max_response_characters=20,
+        temp_directory=tmp_path,
+    )
+
+    response, considered = await service.discover(
+        guild_id=1,
+        user_id=3,
+        query="something funny",
+        candidates=[DiscoveryCandidate("sound", "air horn", "tag funny")],
+        max_items=10,
+    )
+
+    assert response == "resposta"
+    assert considered == (DiscoveryCandidate("sound", "air horn", "tag funny"),)
+    assert repository.messages == [AIMessage(role="user", content="existing conversation")]
+    assert repository.usage[0]["operation"] == "discover"
 
 
 @pytest.mark.asyncio

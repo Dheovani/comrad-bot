@@ -48,6 +48,7 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
         assert isinstance(ai, app_commands.Group)
         assert {command.name for command in ai.commands} == {
             "ask",
+            "discover",
             "reset",
             "speak",
             "status",

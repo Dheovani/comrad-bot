@@ -154,6 +154,7 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DEFAULT_AI_DAILY_REQUEST_BUDGET` | No | `100`; requests per UTC day, or `0` for unlimited |
 | `MAX_AI_CONTEXT_MESSAGES` | No | `30` |
 | `MAX_AI_RESPONSE_CHARACTERS` | No | `1800` |
+| `MAX_AI_DISCOVERY_ITEMS` | No | `40`; queue and sound candidates exposed per discovery request |
 | `MAX_TTS_FILE_SIZE_MB` | No | `10`; hard limit for generated speech output |
 | `MAX_TRANSCRIPTION_FILE_SIZE_MB` | No | `20`; cannot exceed Groq's 25 MB free-tier limit |
 | `MAX_TRANSCRIPTION_DURATION_SECONDS` | No | `300` |
@@ -415,6 +416,7 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/sound export` (moderators only)
 - `/sound restore file:<ComradBot ZIP>` (moderators only)
 - `/ai ask prompt:<text>`
+- `/ai discover query:<text>`
 - `/ai reset`
 - `/ai summarize count:<number>`
 - `/ai transcribe file:<attachment>`
@@ -441,6 +443,13 @@ a larger count is requested. It ignores attachments, does not add the transcript
 channel's AI conversation memory, and applies the same local rate limits as `/ai ask`. `/ai status`
 is ephemeral and reports provider availability, TTS availability, summary access, and local limits
 without making an API request or displaying secrets.
+
+`/ai discover` takes a read-only snapshot of the current guild player's item and queue plus the
+guild's custom sound catalog. It submits at most `MAX_AI_DISCOVERY_ITEMS` bounded metadata records to
+the configured text provider and returns suggestions using exact available names. The operation is
+stateless, consumes the normal AI rate limit and daily budget, and cannot enqueue, play, remove,
+rename, or otherwise mutate audio. No media files, local paths, stream URLs, or requester IDs are
+sent to the provider.
 
 `/ai transcribe` accepts FLAC, MP3, MP4, M4A, OGG, WAV, and WebM attachments. ComradBot checks the
 declared size and MIME type, verifies the real media stream and duration with FFprobe, normalizes
@@ -597,6 +606,10 @@ FFprobe without publishing the image or using real credentials.
   simultaneous calls in the supported single-instance deployment from exceeding the cap. Usage
   summaries deliberately report requests and characters instead of inaccurate provider-independent
   token or currency estimates.
+- **Read-only AI discovery:** `AudioDiscoveryService` exposes only a bounded guild-local projection
+  of queue titles, item types, positions, sound names, categories, tags, and play counts. The prompt
+  treats both the query and catalog as untrusted data, and the provider receives no executable tool
+  or callback. Recommendations therefore cannot trigger playback or mutate queue or sound state.
 - **Persistent guild preferences:** `GuildSettingsService` is the only business-facing access point
   for server configuration. Discord commands do not execute SQL, and audio/AI consume the settings
   through injected async lookups.

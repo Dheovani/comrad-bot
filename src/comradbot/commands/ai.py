@@ -40,6 +40,35 @@ class AICog(commands.Cog):
         for chunk in chunks[1:]:
             await interaction.followup.send(chunk, allowed_mentions=allowed_mentions)
 
+    @ai.command(
+        name="discover",
+        description="Find relevant items already in this server's queue and sound library.",
+    )
+    @app_commands.describe(query="Describe the music or custom sound you want to find.")
+    async def discover(self, interaction: discord.Interaction, query: str) -> None:
+        guild = require_guild(interaction)
+        await interaction.response.defer(thinking=True)
+        result = await self.bot.audio_discovery_service.discover(
+            guild_id=guild.id,
+            user_id=interaction.user.id,
+            query=query,
+        )
+        embed = discord.Embed(
+            title="🔎 Audio discovery",
+            description=result.response,
+            color=0xD13C3C,
+        )
+        embed.set_footer(
+            text=(
+                f"Considered {result.queue_items_considered} queue item(s) and "
+                f"{result.sounds_considered} custom sound(s) • Nothing was played or changed"
+            )
+        )
+        await interaction.followup.send(
+            embed=embed,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
     @ai.command(name="reset", description="Limpa a memória de IA deste canal.")
     async def reset(self, interaction: discord.Interaction) -> None:
         guild = require_guild(interaction)

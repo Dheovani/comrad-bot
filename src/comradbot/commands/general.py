@@ -73,7 +73,7 @@ def build_help_embed() -> discord.Embed:
     embed.add_field(
         name="🤖 AI",
         value=(
-            "`/ai ask` · `/ai reset` · `/ai summarize` · `/ai transcribe`\n"
+            "`/ai ask` · `/ai discover` · `/ai reset` · `/ai summarize` · `/ai transcribe`\n"
             "`/ai speak` · `/ai status` · `/ai usage`\n"
             "AI commands require a configured provider; audio features work without one."
         ),

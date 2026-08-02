@@ -44,6 +44,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added independently selectable ElevenLabs TTS using its official asynchronous SDK, Portuguese
   language enforcement, official voice IDs, bounded Opus output, finite retries, and cleanup on
   provider, quota, timeout, size-limit, and cancellation failures.
+- Added read-only `/ai discover` recommendations grounded in a bounded, guild-local snapshot of the
+  current queue and custom sound catalog, without granting the model playback or mutation actions.
 
 ## [1.0.0] — 2026-07-24
 

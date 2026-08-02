@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from comradbot.ai.discovery import DiscoveryCandidate, build_discovery_prompt
 from comradbot.ai.models import AIMessage, AIUsageSummary, SummaryMessage
 from comradbot.ai.policy import (
     ConversationPolicy,
@@ -271,6 +272,38 @@ class AIService:
         )
         await self._limiter.acquire(guild_id, user_id)
         usage_id = await self._begin_usage(guild_id, user_id, "summarize")
+        try:
+            response = await provider.generate_response(
+                [AIMessage(role="user", content=prompt)],
+                max_characters=self._max_response,
+            )
+        except Exception:
+            await self._finish_usage(usage_id, len(prompt), 0, False)
+            raise
+        await self._finish_usage(usage_id, len(prompt), len(response), True)
+        return response, considered
+
+    async def discover(
+        self,
+        *,
+        guild_id: int,
+        user_id: int,
+        query: str,
+        candidates: list[DiscoveryCandidate],
+        max_items: int,
+    ) -> tuple[str, tuple[DiscoveryCandidate, ...]]:
+        provider = self._require_provider()
+        await self._ensure_guild_ai_enabled(guild_id)
+        if len(query) > self._max_prompt:
+            raise ValidationError(f"The request can contain at most {self._max_prompt} characters.")
+        prompt, considered = build_discovery_prompt(
+            query,
+            candidates,
+            max_characters=self._max_prompt,
+            max_items=max_items,
+        )
+        await self._limiter.acquire(guild_id, user_id)
+        usage_id = await self._begin_usage(guild_id, user_id, "discover")
         try:
             response = await provider.generate_response(
                 [AIMessage(role="user", content=prompt)],
