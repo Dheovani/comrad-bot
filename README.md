@@ -141,6 +141,9 @@ Copy `.env.example` to `.env`. Never commit `.env`.
 | `DATA_DIRECTORY` | No | `./data` |
 | `SOUNDS_DIRECTORY` | No | `./data/sounds` |
 | `HEALTHCHECK_HEARTBEAT_FILE` | No | `./data/.heartbeat` |
+| `EXTERNAL_MONITOR_PING_URL` | No | Secret HTTPS heartbeat URL for an external dead-man's-switch monitor |
+| `EXTERNAL_MONITOR_INTERVAL_SECONDS` | No | `60`; minimum `15` to avoid excessive outbound requests |
+| `EXTERNAL_MONITOR_TIMEOUT_SECONDS` | No | `5`; bounded timeout for each external heartbeat |
 | `DEFAULT_VOLUME` | No | `0.5`, fallback for servers without a persisted preference |
 | `MAX_QUEUE_SIZE` | No | `100` |
 | `MAX_PLAYLISTS_PER_GUILD` | No | `25` |
@@ -351,6 +354,11 @@ docker run --rm --user root \
 
 Back up the local directory and ensure no host bot process is using its SQLite database during the
 copy.
+
+For an unattended deployment, follow the single supported target in
+[docs/hosting-ubuntu-vps.md](docs/hosting-ubuntu-vps.md): one Ubuntu Server 24.04 LTS VPS, one
+Compose replica, and the persistent `comradbot-data` volume. The guide also covers optional external
+dead-man's-switch monitoring and an alert test.
 
 To rebuild after pulling a project update:
 
@@ -646,6 +654,10 @@ FFprobe without publishing the image or using real credentials.
 - **Container liveness without a web server:** the connected bot updates a heartbeat under the data
   volume. Docker checks heartbeat freshness, SQLite, FFmpeg, and FFprobe without contacting Discord
   or an AI provider. Shutdown waits for pending writes before deleting the heartbeat.
+- **Optional external liveness:** an operator-supplied HTTPS ping URL enables a bounded outbound
+  heartbeat compatible with Healthchecks.io. The URL is treated as a secret, no application content
+  is transmitted, redirects are disabled, failures are non-fatal, and logs contain only the error
+  category. Docker's local health check remains authoritative for dependency diagnostics.
 - **Single-instance persistence:** Compose uses a named volume and SQLite for a simple private-server
   deployment. Multiple bot replicas are unsupported until persistence and distributed locks move to
   infrastructure designed for concurrent instances.

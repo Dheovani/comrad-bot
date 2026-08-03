@@ -77,6 +77,23 @@ def test_default_locale_is_typed() -> None:
     assert portuguese.default_locale == "pt-BR"
 
 
+def test_external_monitor_requires_an_https_url() -> None:
+    settings = Settings(
+        _env_file=None,
+        discord_token="test",
+        external_monitor_ping_url="https://hc-ping.com/check-id",
+    )
+
+    assert settings.external_monitor_ping_url is not None
+    assert settings.external_monitor_ping_url.get_secret_value().endswith("check-id")
+    with pytest.raises(ValueError, match="absolute HTTPS URL"):
+        Settings(
+            _env_file=None,
+            discord_token="test",
+            external_monitor_ping_url="http://hc-ping.com/check-id",
+        )
+
+
 def test_sound_quota_defaults_and_bounds_are_typed() -> None:
     settings = Settings(_env_file=None, discord_token="test")
 

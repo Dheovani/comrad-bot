@@ -24,6 +24,7 @@ from comradbot.errors import ComradBotError, PermissionDeniedError
 from comradbot.localization import ComradBotTranslator, Localizer
 from comradbot.logging import log_context
 from comradbot.services.discovery import AudioDiscoveryService
+from comradbot.services.external_monitor import ExternalMonitorService
 from comradbot.services.heartbeat import HeartbeatService
 from comradbot.services.music import PlaylistService
 from comradbot.services.observability import ObservabilityService
@@ -61,6 +62,15 @@ class ComradBot(commands.Bot):
         self.heartbeat = HeartbeatService(
             settings.healthcheck_heartbeat_file,
             interval_seconds=settings.heartbeat_interval_seconds,
+        )
+        self.external_monitor = ExternalMonitorService(
+            (
+                settings.external_monitor_ping_url.get_secret_value()
+                if settings.external_monitor_ping_url is not None
+                else None
+            ),
+            interval_seconds=settings.external_monitor_interval_seconds,
+            timeout_seconds=settings.external_monitor_timeout_seconds,
         )
         self.guild_settings_service = GuildSettingsService(
             GuildSettingsRepository(self.database.sessions),
@@ -172,9 +182,11 @@ class ComradBot(commands.Bot):
 
     async def on_ready(self) -> None:
         await self.heartbeat.start()
+        await self.external_monitor.start()
         logger.info("ComradBot conectado como %s", self.user)
 
     async def close(self) -> None:
+        await self.external_monitor.close()
         await self.heartbeat.close()
         await self.audio_manager.close()
         await self.ai_service.close()

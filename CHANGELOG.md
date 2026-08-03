@@ -11,6 +11,10 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Added monthly Dependabot updates for Python, Docker, and GitHub Actions dependencies.
 - Added scheduled Trivy scanning for high and critical container vulnerabilities with SARIF uploads.
 - Added release metadata validation and checksummed Docker deployment bundles to release automation.
+- Added optional secret-safe outbound heartbeat monitoring compatible with Healthchecks.io, with
+  bounded timeouts and non-fatal sanitized failure logs.
+- Documented one supported 24/7 deployment target: a single Ubuntu 24.04 LTS VPS running the
+  published image through Docker Compose with the persistent `comradbot-data` volume.
 
 ### Audio and music
 

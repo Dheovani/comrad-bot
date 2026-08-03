@@ -3,6 +3,7 @@
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -51,6 +52,7 @@ class Settings(BaseSettings):
     data_directory: Path = Path("./data")
     sounds_directory: Path = Path("./data/sounds")
     healthcheck_heartbeat_file: Path = Path("./data/.heartbeat")
+    external_monitor_ping_url: SecretStr | None = None
 
     default_volume: float = Field(default=0.5, ge=0.0, le=1.0)
     max_queue_size: int = Field(default=100, ge=1, le=1000)
@@ -81,6 +83,8 @@ class Settings(BaseSettings):
     music_resolve_timeout_seconds: float = Field(default=30.0, ge=1.0, le=120.0)
     heartbeat_interval_seconds: float = Field(default=15.0, ge=1.0, le=300.0)
     healthcheck_max_age_seconds: float = Field(default=45.0, ge=5.0, le=900.0)
+    external_monitor_interval_seconds: float = Field(default=60.0, ge=15.0, le=3600.0)
+    external_monitor_timeout_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
@@ -98,6 +102,16 @@ class Settings(BaseSettings):
             return None
         normalized = value.strip()
         return normalized or None
+
+    @field_validator("external_monitor_ping_url")
+    @classmethod
+    def external_monitor_must_use_https(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None:
+            return None
+        parsed = urlsplit(value.get_secret_value())
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("EXTERNAL_MONITOR_PING_URL must be an absolute HTTPS URL")
+        return value
 
     @property
     def ai_enabled(self) -> bool:

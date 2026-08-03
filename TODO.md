@@ -36,17 +36,10 @@ selected.
 - [x] Add native Discord polls for game-night planning; defer scheduled-event automation until it offers enough value to justify Manage Events access
 - [x] Add persistent per-guild command feature flags for music, sounds, AI, and social utilities
 
-## 5. Persistence and scale
-
-- [ ] Add tested PostgreSQL support before allowing multiple bot replicas
-- [ ] Add distributed coordination for guild players, rate limits, and scheduled work
-- [ ] Add automated encrypted backups and documented restoration verification
-- [ ] Define explicit data-retention and deletion controls for each persisted domain
-
-## 6. Operations and releases
+## 5. Operations and releases
 
 - [x] Publish the prepared versioned multi-platform container image through the GitHub 1.0.0 release
 - [x] Add container vulnerability scanning and dependency update automation
 - [x] Add changelog validation and a checksummed Docker deployment bundle to the release workflow
-- [ ] Add external monitoring integration for long-running hosted deployments
-- [ ] Document one supported 24/7 hosting target with persistent-volume requirements
+- [x] Add optional secret-safe external heartbeat monitoring for long-running deployments
+- [x] Document a single-replica Ubuntu 24.04 LTS Docker Compose target with persistent storage
