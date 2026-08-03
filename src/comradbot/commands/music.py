@@ -16,7 +16,7 @@ from comradbot.commands.helpers import (
 )
 from comradbot.errors import AudioPlaybackError
 from comradbot.services.music import PlaylistDetails
-from comradbot.ui.player import PlayerControls
+from comradbot.ui.player import PlayerControls, build_player_panel_embed
 
 if TYPE_CHECKING:
     from comradbot.bot import ComradBot
@@ -126,8 +126,10 @@ class MusicCog(commands.Cog):
             await interaction.response.send_message("The queue is empty.")
             return
         items = await player.queue.snapshot()
+        embed, _ = build_player_panel_embed(player, items)
         await interaction.response.send_message(
-            embed=build_queue_embed(player.current, items, player.repeat_mode)
+            embed=embed,
+            view=PlayerControls(self.bot.audio_manager, guild.id),
         )
 
     @music.command(name="now", description="Show the current audio item.")

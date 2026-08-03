@@ -51,6 +51,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 - Added packaged English and Brazilian Portuguese catalogs, Discord application-command description
   translation, interaction-locale runtime fallback, and localized `/help` and global error messages.
+- Added persistent player controls with stable component IDs, ten-item queue pagination, explicit
+  refresh, live playback/repeat state, and page clamping when the queue changes.
 
 ## [1.0.0] — 2026-07-24
 

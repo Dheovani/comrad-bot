@@ -32,7 +32,7 @@ selected.
 ## 4. Discord experience
 
 - [x] Add packaged localization infrastructure for English and Brazilian Portuguese responses
-- [ ] Expand player panels with pagination and persistent state refresh
+- [x] Expand player panels with bounded pagination and persistent state refresh
 - [ ] Evaluate polls, event planning, game-night scheduling, and lightweight social utilities
 - [ ] Add per-guild command feature flags where operationally useful
 

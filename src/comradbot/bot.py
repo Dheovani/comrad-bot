@@ -30,6 +30,7 @@ from comradbot.services.observability import ObservabilityService
 from comradbot.services.settings import GuildSettingsService
 from comradbot.sounds.service import SoundService
 from comradbot.sounds.storage import SoundStorage
+from comradbot.ui.player import PlayerControls
 
 logger = logging.getLogger(__name__)
 EXTENSIONS = (
@@ -138,6 +139,7 @@ class ComradBot(commands.Bot):
     async def setup_hook(self) -> None:
         self.settings.prepare_directories()
         await self.tree.set_translator(ComradBotTranslator(self.localizer))
+        self.add_view(PlayerControls(self.audio_manager))
         ffmpeg, ffprobe = self.ffmpeg.verify_tools()
         logger.info("Ferramentas de áudio disponíveis: ffmpeg=%s ffprobe=%s", ffmpeg, ffprobe)
         logger.info(

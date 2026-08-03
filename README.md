@@ -431,8 +431,9 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/settings ai-budget daily-requests:<0-10000>`
 - `/settings sounds max-count:<number> storage-mb:<number>`
 
-The music panel provides pause/resume, skip, stop, and queue buttons, but every action remains
-available as a slash command.
+The persistent music panel provides pause/resume, skip, stop, refresh, and ten-item queue pagination.
+Every playback action remains available as a slash command. Panel refresh and page navigation read
+the current guild player directly, so they remain useful after queue changes and bot restarts.
 
 ComradBot packages English (`en-US`) and Brazilian Portuguese (`pt-BR`) localization catalogs.
 Discord selects translated command descriptions and `/help` content from the interaction locale.
@@ -653,6 +654,11 @@ FFprobe without publishing the image or using real credentials.
 - **Voice control permissions:** mutating slash commands and player buttons require the member to
   share the bot's voice channel. Members with Move Members permission may control it from another
   voice channel; read-only queue views remain available without joining voice.
+- **Persistent player panels:** stable component IDs allow discord.py to restore callbacks after a
+  restart without persisting a duplicate queue snapshot. Each interaction rebuilds the embed from
+  the guild-scoped player, derives the displayed page from the bot-authored footer, and clamps it to
+  the current queue length. Pagination and refresh are read-only; pause, resume, skip, and stop retain
+  the same voice-channel permission checks as their slash-command equivalents.
 
 ## Current limitations
 
