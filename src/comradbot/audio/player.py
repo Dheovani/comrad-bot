@@ -41,6 +41,8 @@ class GuildAudioPlayer:
         self._source_refresher = source_refresher
         self._closed = False
         self._playback_done = asyncio.Event()
+        self._idle = asyncio.Event()
+        self._idle.set()
         self._playback_error: Exception | None = None
         self._worker = asyncio.create_task(self._run(), name=f"audio-player-{guild_id}")
 
@@ -58,7 +60,17 @@ class GuildAudioPlayer:
             raise AudioPlaybackError("This guild player has already been shut down.")
         if refresh_if_queued and (self.current is not None or len(self.queue) > 0):
             item.refresh_before_playback = True
-        return await self.queue.put(item, next_item=next_item)
+        self._idle.clear()
+        try:
+            return await self.queue.put(item, next_item=next_item)
+        except BaseException:
+            if self.current is None and len(self.queue) == 0:
+                self._idle.set()
+            raise
+
+    async def wait_until_idle(self) -> None:
+        """Wait until no item is playing or queued."""
+        await self._idle.wait()
 
     def _after_playback(self, error: Exception | None) -> None:
         loop = self._worker.get_loop()
@@ -93,6 +105,8 @@ class GuildAudioPlayer:
                 if not retain_item:
                     await item.cleanup()
                 self.current = None
+                if len(self.queue) == 0:
+                    self._idle.set()
 
     async def _refresh_source(self, item: AudioItem) -> None:
         if not item.refresh_before_playback:

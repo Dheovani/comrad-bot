@@ -186,10 +186,7 @@ async def test_player_advances_and_cleans_each_completed_item(tmp_path: Path) ->
         assert player.current is not None and player.current.title == "second"
 
         release_second.set()
-        for _ in range(100):
-            if not second_path.exists() and player.current is None:
-                break
-            await asyncio.sleep(0)
+        await asyncio.wait_for(player.wait_until_idle(), timeout=0.5)
         assert not second_path.exists()
         assert player.current is None
     finally:
