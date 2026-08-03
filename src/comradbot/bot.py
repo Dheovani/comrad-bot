@@ -39,6 +39,7 @@ EXTENSIONS = (
     "comradbot.commands.sounds",
     "comradbot.commands.ai",
     "comradbot.commands.settings",
+    "comradbot.commands.social",
 )
 
 

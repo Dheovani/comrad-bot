@@ -4,7 +4,13 @@
     "Show dependency health and runtime metrics.": "Mostra a saúde das dependências e métricas de execução.",
     "Show ComradBot's available commands.": "Mostra os comandos disponíveis do ComradBot.",
     "Find relevant items already in this server's queue and sound library.": "Encontra itens relevantes na fila e na biblioteca de sons deste servidor.",
-    "Describe the music or custom sound you want to find.": "Descreva a música ou o som personalizado que deseja encontrar."
+    "Describe the music or custom sound you want to find.": "Descreva a música ou o som personalizado que deseja encontrar.",
+    "Plan game nights and other activities with friends.": "Planeja noites de jogos e outras atividades com amigos.",
+    "Create a poll for a game night or group decision.": "Cria uma enquete para uma noite de jogos ou decisão do grupo.",
+    "Question shown above the poll.": "Pergunta exibida acima da enquete.",
+    "Two to ten options separated by |, for example Friday | Saturday.": "De duas a dez opções separadas por |, por exemplo sexta | sábado.",
+    "How many hours voting remains open.": "Por quantas horas a votação permanecerá aberta.",
+    "Allow each member to choose more than one option.": "Permite que cada membro escolha mais de uma opção."
   },
   "messages": {
     "error.permission": "⛔ Você não tem permissão para usar este comando.",
@@ -21,6 +27,8 @@
     "help.start.value": "Entre em um canal de voz antes de iniciar músicas ou sons. Use `/ping` para verificar o bot ou `/health` para consultar as dependências.",
     "help.settings.name": "⚙️ Configurações do servidor",
     "help.settings.value": "`/settings show` · `/settings volume` · `/settings ai`\n`/settings ai-memory` · `/settings ai-budget` · `/settings sounds`\nAlterar configurações exige a permissão Gerenciar Servidor.",
+    "help.social.name": "📊 Social",
+    "help.social.value": "`/social poll` — cria uma enquete nativa para noites de jogos e decisões do grupo",
     "help.footer": "ComradBot — áudio organizado para o coletivo."
   }
 }

@@ -97,7 +97,7 @@ either executable is unavailable.
 2. Generate a token under **Bot** and store it only in the local `.env` as `DISCORD_TOKEN`.
 3. Under **OAuth2 > URL Generator**, select the `bot` and `applications.commands` scopes.
 4. Grant only these permissions: View Channels, Send Messages, Embed Links, Attach Files, Read
-   Message History, Connect, Speak, and Use Application Commands.
+   Message History, Create Polls, Connect, Speak, and Use Application Commands.
 5. Invite the bot and set the server ID as `DISCORD_GUILD_ID` for immediate development sync.
 
 Do not grant Administrator. The bot enables Guilds, Guild Messages, and Voice States intents.
@@ -430,10 +430,17 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/settings ai-memory scope:<channel | user | server | none> retention-days:<1-365>`
 - `/settings ai-budget daily-requests:<0-10000>`
 - `/settings sounds max-count:<number> storage-mb:<number>`
+- `/social poll question:<text> options:<option | option> duration-hours:<1-768> multiple:<boolean>`
 
 The persistent music panel provides pause/resume, skip, stop, refresh, and ten-item queue pagination.
 Every playback action remains available as a slash command. Panel refresh and page navigation read
 the current guild player directly, so they remain useful after queue changes and bot restarts.
+
+`/social poll` creates a Discord-native public poll with two to ten pipe-separated choices. It is a
+lightweight way to choose games, dates, or times without storing votes or maintaining a second
+calendar. The bot requires Create Polls in the destination channel. Automated Discord Scheduled
+Events were evaluated and intentionally deferred: they require Manage Events and additional event
+lifecycle policy, while Discord's built-in event UI remains available to server moderators.
 
 ComradBot packages English (`en-US`) and Brazilian Portuguese (`pt-BR`) localization catalogs.
 Discord selects translated command descriptions and `/help` content from the interaction locale.

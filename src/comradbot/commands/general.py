@@ -74,6 +74,11 @@ def build_help_embed(
         value=localizer.text("help.settings.value", locale),
         inline=False,
     )
+    embed.add_field(
+        name=localizer.text("help.social.name", locale),
+        value=localizer.text("help.social.value", locale),
+        inline=False,
+    )
     embed.set_footer(text=localizer.text("help.footer", locale))
     return embed
 
