@@ -427,6 +427,7 @@ ComradBot instance with this volume; do not scale the Compose service beyond one
 - `/settings show`
 - `/settings volume value:<0-100>`
 - `/settings ai enabled:<boolean>`
+- `/settings feature feature:<music | sounds | ai | social> enabled:<boolean>`
 - `/settings ai-memory scope:<channel | user | server | none> retention-days:<1-365>`
 - `/settings ai-budget daily-requests:<0-10000>`
 - `/settings sounds max-count:<number> storage-mb:<number>`
@@ -441,6 +442,12 @@ lightweight way to choose games, dates, or times without storing votes or mainta
 calendar. The bot requires Create Polls in the destination channel. Automated Discord Scheduled
 Events were evaluated and intentionally deferred: they require Manage Events and additional event
 lifecycle policy, while Discord's built-in event UI remains available to server moderators.
+
+Members with Manage Server can use `/settings feature` to enable or disable the `music`, `sounds`,
+`ai`, or `social` command group independently for their server. Flags are persisted in the database
+and default to enabled. Disabled slash commands remain visible because the command tree is shared,
+but return a safe explanatory error without running the operation. Disabling music does not stop an
+item that is already playing; use `/music stop` before disabling it when immediate silence is needed.
 
 ComradBot packages English (`en-US`) and Brazilian Portuguese (`pt-BR`) localization catalogs.
 Discord selects translated command descriptions and `/help` content from the interaction locale.

@@ -1,13 +1,22 @@
 """Business rules for persistent guild configuration."""
 
 import asyncio
+import json
 from collections import defaultdict
 from dataclasses import dataclass
+from enum import StrEnum
 
 from comradbot.ai.policy import ConversationPolicy, ConversationScope
 from comradbot.database.models import GuildSettings
 from comradbot.database.repositories.guild_settings import GuildSettingsRepository
-from comradbot.errors import ValidationError
+from comradbot.errors import FeatureDisabledError, ValidationError
+
+
+class GuildFeature(StrEnum):
+    MUSIC = "music"
+    SOUNDS = "sounds"
+    AI = "ai"
+    SOCIAL = "social"
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +28,7 @@ class GuildConfiguration:
     ai_conversation_scope: ConversationScope
     ai_retention_days: int
     ai_daily_request_budget: int
+    disabled_features: frozenset[GuildFeature]
 
 
 class GuildSettingsService:
@@ -43,6 +53,7 @@ class GuildSettingsService:
             fallback_ai_conversation_scope,
             fallback_ai_retention_days,
             fallback_ai_daily_request_budget,
+            frozenset(),
         )
         self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
@@ -65,6 +76,7 @@ class GuildSettingsService:
                 ai_conversation_scope=current.ai_conversation_scope.value,
                 ai_retention_days=current.ai_retention_days,
                 ai_daily_request_budget=current.ai_daily_request_budget,
+                disabled_features_json=self._serialize_features(current.disabled_features),
             )
         return self._configuration(updated)
 
@@ -80,6 +92,7 @@ class GuildSettingsService:
                 ai_conversation_scope=current.ai_conversation_scope.value,
                 ai_retention_days=current.ai_retention_days,
                 ai_daily_request_budget=current.ai_daily_request_budget,
+                disabled_features_json=self._serialize_features(current.disabled_features),
             )
         return self._configuration(updated)
 
@@ -107,6 +120,7 @@ class GuildSettingsService:
                 ai_conversation_scope=current.ai_conversation_scope.value,
                 ai_retention_days=current.ai_retention_days,
                 ai_daily_request_budget=current.ai_daily_request_budget,
+                disabled_features_json=self._serialize_features(current.disabled_features),
             )
         return self._configuration(updated)
 
@@ -140,6 +154,7 @@ class GuildSettingsService:
                 ai_conversation_scope=scope.value,
                 ai_retention_days=retention_days,
                 ai_daily_request_budget=current.ai_daily_request_budget,
+                disabled_features_json=self._serialize_features(current.disabled_features),
             )
         return self._configuration(updated)
 
@@ -168,11 +183,49 @@ class GuildSettingsService:
                 ai_conversation_scope=current.ai_conversation_scope.value,
                 ai_retention_days=current.ai_retention_days,
                 ai_daily_request_budget=daily_requests,
+                disabled_features_json=self._serialize_features(current.disabled_features),
             )
         return self._configuration(updated)
 
     async def ai_daily_request_budget_for(self, guild_id: int) -> int:
         return (await self.get(guild_id)).ai_daily_request_budget
+
+    async def set_feature_enabled(
+        self, guild_id: int, feature: GuildFeature, enabled: bool
+    ) -> GuildConfiguration:
+        if feature is GuildFeature.AI:
+            return await self.set_ai_enabled(guild_id, enabled)
+        async with self._locks[guild_id]:
+            current = await self.get(guild_id)
+            disabled = set(current.disabled_features)
+            if enabled:
+                disabled.discard(feature)
+            else:
+                disabled.add(feature)
+            updated = await self._repository.update(
+                guild_id,
+                default_volume=current.default_volume,
+                ai_enabled=current.ai_enabled,
+                max_sound_count=current.max_sound_count,
+                max_sound_storage_mb=current.max_sound_storage_mb,
+                ai_conversation_scope=current.ai_conversation_scope.value,
+                ai_retention_days=current.ai_retention_days,
+                ai_daily_request_budget=current.ai_daily_request_budget,
+                disabled_features_json=self._serialize_features(frozenset(disabled)),
+            )
+        return self._configuration(updated)
+
+    async def feature_enabled_for(self, guild_id: int, feature: GuildFeature) -> bool:
+        settings = await self.get(guild_id)
+        if feature is GuildFeature.AI:
+            return settings.ai_enabled
+        return feature not in settings.disabled_features
+
+    async def ensure_feature_enabled(self, guild_id: int, feature: GuildFeature) -> None:
+        if not await self.feature_enabled_for(guild_id, feature):
+            raise FeatureDisabledError(
+                f"The {feature.value} command group is disabled in this server."
+            )
 
     @staticmethod
     def _configuration(settings: GuildSettings) -> GuildConfiguration:
@@ -184,4 +237,27 @@ class GuildSettingsService:
             ai_conversation_scope=ConversationScope(settings.ai_conversation_scope),
             ai_retention_days=settings.ai_retention_days,
             ai_daily_request_budget=settings.ai_daily_request_budget,
+            disabled_features=GuildSettingsService._deserialize_features(
+                settings.disabled_features_json
+            ),
+        )
+
+    @staticmethod
+    def _serialize_features(features: frozenset[GuildFeature]) -> str:
+        return json.dumps(sorted(feature.value for feature in features))
+
+    @staticmethod
+    def _deserialize_features(value: str) -> frozenset[GuildFeature]:
+        try:
+            raw_features = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            return frozenset()
+        if not isinstance(raw_features, list):
+            return frozenset()
+        return frozenset(
+            feature
+            for item in raw_features
+            if isinstance(item, str)
+            for feature in GuildFeature
+            if feature.value == item and feature is not GuildFeature.AI
         )

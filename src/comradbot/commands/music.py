@@ -16,6 +16,7 @@ from comradbot.commands.helpers import (
 )
 from comradbot.errors import AudioPlaybackError
 from comradbot.services.music import PlaylistDetails
+from comradbot.services.settings import GuildFeature
 from comradbot.ui.player import PlayerControls, build_player_panel_embed
 
 if TYPE_CHECKING:
@@ -72,6 +73,13 @@ class MusicCog(commands.Cog):
 
     def __init__(self, bot: "ComradBot") -> None:
         self.bot = bot
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.guild_id is not None:
+            await self.bot.guild_settings_service.ensure_feature_enabled(
+                interaction.guild_id, GuildFeature.MUSIC
+            )
+        return True
 
     @music.command(name="play", description="Search for music or play a public URL.")
     @app_commands.describe(query="Search text or public URL")

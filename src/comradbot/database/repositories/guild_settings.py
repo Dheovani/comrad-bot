@@ -25,6 +25,7 @@ class GuildSettingsRepository:
         ai_conversation_scope: str,
         ai_retention_days: int,
         ai_daily_request_budget: int,
+        disabled_features_json: str,
     ) -> GuildSettings:
         async with self._sessions.begin() as session:
             result = await session.execute(
@@ -41,6 +42,7 @@ class GuildSettingsRepository:
                     ai_conversation_scope=ai_conversation_scope,
                     ai_retention_days=ai_retention_days,
                     ai_daily_request_budget=ai_daily_request_budget,
+                    disabled_features_json=disabled_features_json,
                 )
                 session.add(settings)
             else:
@@ -51,5 +53,6 @@ class GuildSettingsRepository:
                 settings.ai_conversation_scope = ai_conversation_scope
                 settings.ai_retention_days = ai_retention_days
                 settings.ai_daily_request_budget = ai_daily_request_budget
+                settings.disabled_features_json = disabled_features_json
             await session.flush()
             return settings

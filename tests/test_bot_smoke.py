@@ -43,6 +43,7 @@ async def test_all_command_extensions_load_without_external_services(tmp_path: P
             "ai",
             "ai-budget",
             "ai-memory",
+            "feature",
             "show",
             "sounds",
             "volume",

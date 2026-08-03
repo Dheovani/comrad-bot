@@ -34,7 +34,7 @@ selected.
 - [x] Add packaged localization infrastructure for English and Brazilian Portuguese responses
 - [x] Expand player panels with bounded pagination and persistent state refresh
 - [x] Add native Discord polls for game-night planning; defer scheduled-event automation until it offers enough value to justify Manage Events access
-- [ ] Add per-guild command feature flags where operationally useful
+- [x] Add persistent per-guild command feature flags for music, sounds, AI, and social utilities
 
 ## 5. Persistence and scale
 

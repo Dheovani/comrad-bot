@@ -13,6 +13,10 @@ class PermissionDeniedError(ComradBotError):
     """The actor is not allowed to perform an operation."""
 
 
+class FeatureDisabledError(ComradBotError):
+    """A guild administrator disabled the requested command group."""
+
+
 class VoiceConnectionError(ComradBotError):
     """A Discord voice connection could not be used."""
 

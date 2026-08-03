@@ -9,6 +9,7 @@ from discord.ext import commands
 from comradbot.ai.policy import ConversationScope
 from comradbot.commands.helpers import require_guild
 from comradbot.errors import PermissionDeniedError
+from comradbot.services.settings import GuildFeature
 
 if TYPE_CHECKING:
     from comradbot.bot import ComradBot
@@ -54,6 +55,15 @@ class SettingsCog(commands.Cog):
             value=(
                 f"Scope: {settings.ai_conversation_scope.value}\n"
                 f"Retention: {settings.ai_retention_days} day(s)"
+            ),
+            inline=True,
+        )
+        embed.add_field(
+            name="Command groups",
+            value="\n".join(
+                f"{feature.value}: "
+                f"{'Disabled' if feature in settings.disabled_features else 'Enabled'}"
+                for feature in (GuildFeature.MUSIC, GuildFeature.SOUNDS, GuildFeature.SOCIAL)
             ),
             inline=True,
         )
@@ -116,6 +126,25 @@ class SettingsCog(commands.Cog):
         state = "enabled" if enabled else "disabled"
         await interaction.response.send_message(
             f"🤖 AI features are now **{state}** for this server.",
+            ephemeral=True,
+        )
+
+    @guild_settings.command(
+        name="feature",
+        description="Enable or disable a command group for this server.",
+    )
+    async def feature(
+        self,
+        interaction: discord.Interaction,
+        feature: GuildFeature,
+        enabled: bool,
+    ) -> None:
+        require_manage_guild(interaction)
+        guild = require_guild(interaction)
+        await self.bot.guild_settings_service.set_feature_enabled(guild.id, feature, enabled)
+        state = "enabled" if enabled else "disabled"
+        await interaction.response.send_message(
+            f"The **{feature.value}** command group is now **{state}** for this server.",
             ephemeral=True,
         )
 

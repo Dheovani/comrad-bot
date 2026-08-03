@@ -26,7 +26,7 @@
     "help.start.name": "Primeiros passos",
     "help.start.value": "Entre em um canal de voz antes de iniciar músicas ou sons. Use `/ping` para verificar o bot ou `/health` para consultar as dependências.",
     "help.settings.name": "⚙️ Configurações do servidor",
-    "help.settings.value": "`/settings show` · `/settings volume` · `/settings ai`\n`/settings ai-memory` · `/settings ai-budget` · `/settings sounds`\nAlterar configurações exige a permissão Gerenciar Servidor.",
+    "help.settings.value": "`/settings show` · `/settings volume` · `/settings ai` · `/settings feature`\n`/settings ai-memory` · `/settings ai-budget` · `/settings sounds`\nAlterar configurações exige a permissão Gerenciar Servidor.",
     "help.social.name": "📊 Social",
     "help.social.value": "`/social poll` — cria uma enquete nativa para noites de jogos e decisões do grupo",
     "help.footer": "ComradBot — áudio organizado para o coletivo."

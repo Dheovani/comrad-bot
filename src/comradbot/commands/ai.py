@@ -10,6 +10,7 @@ from comradbot.ai.models import SummaryMessage
 from comradbot.ai.policy import ConversationScope
 from comradbot.commands.helpers import connect_player_to_user, require_guild
 from comradbot.errors import PermissionDeniedError, ValidationError
+from comradbot.services.settings import GuildFeature
 from comradbot.utils.text import split_message
 
 if TYPE_CHECKING:
@@ -21,6 +22,13 @@ class AICog(commands.Cog):
 
     def __init__(self, bot: "ComradBot") -> None:
         self.bot = bot
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.guild_id is not None:
+            await self.bot.guild_settings_service.ensure_feature_enabled(
+                interaction.guild_id, GuildFeature.AI
+            )
+        return True
 
     @ai.command(name="ask", description="Faz uma pergunta ao ComradBot.")
     async def ask(self, interaction: discord.Interaction, prompt: str) -> None:

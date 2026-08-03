@@ -11,6 +11,7 @@ from comradbot.audio.models import AudioItem
 from comradbot.commands.helpers import connect_player_to_user, require_guild
 from comradbot.database.models import CustomSound
 from comradbot.errors import PermissionDeniedError, ValidationError
+from comradbot.services.settings import GuildFeature
 
 if TYPE_CHECKING:
     from comradbot.bot import ComradBot
@@ -21,6 +22,13 @@ class SoundsCog(commands.Cog):
 
     def __init__(self, bot: "ComradBot") -> None:
         self.bot = bot
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.guild_id is not None:
+            await self.bot.guild_settings_service.ensure_feature_enabled(
+                interaction.guild_id, GuildFeature.SOUNDS
+            )
+        return True
 
     @sound.command(name="upload", description="Upload a custom sound.")
     async def upload(

@@ -5,8 +5,8 @@ import pytest
 from comradbot.ai.policy import ConversationPolicy, ConversationScope
 from comradbot.database.repositories.guild_settings import GuildSettingsRepository
 from comradbot.database.session import Database
-from comradbot.errors import ValidationError
-from comradbot.services.settings import GuildSettingsService
+from comradbot.errors import FeatureDisabledError, ValidationError
+from comradbot.services.settings import GuildFeature, GuildSettingsService
 
 
 @pytest.mark.asyncio
@@ -24,6 +24,7 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
         assert (await service.get(123)).ai_conversation_scope is ConversationScope.CHANNEL
         assert (await service.get(123)).ai_retention_days == 30
         assert (await service.get(123)).ai_daily_request_budget == 100
+        assert (await service.get(123)).disabled_features == frozenset()
 
         await service.set_default_volume(123, 0.8)
         disabled = await service.set_ai_enabled(123, False)
@@ -66,6 +67,16 @@ async def test_guild_settings_persist_and_preserve_independent_values(tmp_path: 
         assert await service.ai_daily_request_budget_for(123) == 25
         with pytest.raises(ValidationError, match="between 0 and 10000"):
             await service.set_ai_daily_request_budget(123, -1)
+        disabled = await service.set_feature_enabled(123, GuildFeature.SOCIAL, False)
+        assert disabled.disabled_features == frozenset({GuildFeature.SOCIAL})
+        assert not await service.feature_enabled_for(123, GuildFeature.SOCIAL)
+        with pytest.raises(FeatureDisabledError, match="social command group is disabled"):
+            await service.ensure_feature_enabled(123, GuildFeature.SOCIAL)
+        enabled = await service.set_feature_enabled(123, GuildFeature.SOCIAL, True)
+        assert enabled.disabled_features == frozenset()
+        assert await service.feature_enabled_for(123, GuildFeature.SOCIAL)
+        ai_disabled = await service.set_feature_enabled(123, GuildFeature.AI, False)
+        assert ai_disabled.ai_enabled is False
     finally:
         await database.close()
 

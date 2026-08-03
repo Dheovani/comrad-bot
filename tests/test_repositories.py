@@ -158,6 +158,7 @@ async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
             ai_conversation_scope="user",
             ai_retention_days=14,
             ai_daily_request_budget=55,
+            disabled_features_json='["social"]',
         )
         found = await repository.get(123)
         assert found is not None
@@ -168,6 +169,7 @@ async def test_guild_settings_repository_round_trip(tmp_path: Path) -> None:
         assert found.ai_conversation_scope == "user"
         assert found.ai_retention_days == 14
         assert found.ai_daily_request_budget == 55
+        assert found.disabled_features_json == '["social"]'
     finally:
         await database.close()
 

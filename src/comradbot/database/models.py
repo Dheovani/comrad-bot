@@ -33,6 +33,7 @@ class GuildSettings(Base):
     ai_conversation_scope: Mapped[str] = mapped_column(String(20), default="channel")
     ai_retention_days: Mapped[int] = mapped_column(Integer, default=30)
     ai_daily_request_budget: Mapped[int] = mapped_column(Integer, default=100)
+    disabled_features_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

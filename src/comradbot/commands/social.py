@@ -8,6 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from comradbot.errors import PermissionDeniedError
+from comradbot.services.settings import GuildFeature
 from comradbot.services.social import MAX_POLL_DURATION_HOURS, prepare_poll
 
 if TYPE_CHECKING:
@@ -23,6 +24,13 @@ class SocialCog(commands.Cog):
 
     def __init__(self, bot: "ComradBot") -> None:
         self.bot = bot
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.guild_id is not None:
+            await self.bot.guild_settings_service.ensure_feature_enabled(
+                interaction.guild_id, GuildFeature.SOCIAL
+            )
+        return True
 
     @social.command(name="poll", description="Create a poll for a game night or group decision.")
     @app_commands.describe(
