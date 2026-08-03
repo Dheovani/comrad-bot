@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from comradbot import __version__
 from scripts.validate_release import normalized_release_version, validate_release
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -29,16 +30,17 @@ def test_container_release_workflow_publishes_versioned_multi_platform_image() -
 def test_production_compose_uses_published_image_without_local_build() -> None:
     compose = (PROJECT_ROOT / "compose.production.yaml").read_text(encoding="utf-8")
 
-    assert "image: ${COMRADBOT_IMAGE:-theovani/comradbot:1.0.0}" in compose
+    assert "image: ${COMRADBOT_IMAGE:-theovani/comradbot:1.1.0}" in compose
     assert "\n    build:" not in compose
     assert "comradbot-data:/app/data" in compose
     assert "restart: unless-stopped" in compose
 
 
-@pytest.mark.parametrize("tag", ["v1.0.0", "1.0.0"])
+@pytest.mark.parametrize("tag", ["v1.1.0", "1.1.0"])
 def test_release_validator_accepts_matching_semantic_version(tag: str) -> None:
-    assert normalized_release_version(tag) == "1.0.0"
-    assert validate_release(tag, PROJECT_ROOT) == "1.0.0"
+    assert normalized_release_version(tag) == "1.1.0"
+    assert validate_release(tag, PROJECT_ROOT) == "1.1.0"
+    assert __version__ == "1.1.0"
 
 
 @pytest.mark.parametrize("tag", ["v1", "1.0", "latest", "v1.0.0-beta"])

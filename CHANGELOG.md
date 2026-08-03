@@ -6,6 +6,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-08-03
+
+ComradBot 1.1.0 expands the stable private-server bot with richer audio management, safer custom
+sound administration, configurable AI policies, localized Discord interactions, lightweight social
+planning, per-guild feature controls, and a documented monitored deployment path.
+
 ### Operations and security
 
 - Added monthly Dependabot updates for Python, Docker, and GitHub Actions dependencies.
@@ -15,6 +21,8 @@ The project follows [Semantic Versioning](https://semver.org/).
   bounded timeouts and non-fatal sanitized failure logs.
 - Documented one supported 24/7 deployment target: a single Ubuntu 24.04 LTS VPS running the
   published image through Docker Compose with the persistent `comradbot-data` volume.
+- Reduced the README to a practical setup and usage guide, moving architectural tradeoffs into
+  `docs/technical-decisions.md`.
 
 ### Audio and music
 
@@ -57,6 +65,10 @@ The project follows [Semantic Versioning](https://semver.org/).
   translation, interaction-locale runtime fallback, and localized `/help` and global error messages.
 - Added persistent player controls with stable component IDs, ten-item queue pagination, explicit
   refresh, live playback/repeat state, and page clamping when the queue changes.
+- Added `/social poll` using bounded Discord-native polls for game-night scheduling and group
+  decisions without introducing a second calendar or vote store.
+- Added persistent per-guild command feature flags for music, sounds, AI, and social utilities,
+  managed through `/settings feature` and migration `0008`.
 
 ## [1.0.0] — 2026-07-24
 

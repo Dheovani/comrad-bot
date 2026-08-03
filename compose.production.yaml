@@ -1,6 +1,6 @@
 services:
   comradbot:
-    image: ${COMRADBOT_IMAGE:-theovani/comradbot:1.0.0}
+    image: ${COMRADBOT_IMAGE:-theovani/comradbot:1.1.0}
     env_file:
       - .env
     environment:
