@@ -1,3 +1,5 @@
+FROM denoland/deno:bin-2.5.6 AS deno
+
 FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -13,6 +15,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+
+COPY --from=deno /deno /usr/local/bin/deno
 
 RUN groupadd --system --gid 10001 comradbot \
     && useradd --system --uid 10001 --gid comradbot --home-dir /app --shell /usr/sbin/nologin comradbot

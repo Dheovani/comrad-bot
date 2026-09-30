@@ -6,6 +6,13 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Restored YouTube music playback by installing the current yt-dlp EJS components and the Deno
+  JavaScript runtime in the container, and by forwarding safe extractor HTTP headers to FFmpeg.
+- Replaced the retired Groq developer-tier `llama-3.3-70b-versatile` default with its supported
+  `openai/gpt-oss-120b` successor.
+
 ## [1.1.0] — 2026-08-03
 
 ComradBot 1.1.0 expands the stable private-server bot with richer audio management, safer custom

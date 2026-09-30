@@ -105,4 +105,5 @@ jobs:
           docker run --rm --entrypoint python comradbot:ci --version
           docker run --rm --entrypoint ffmpeg comradbot:ci -version
           docker run --rm --entrypoint ffprobe comradbot:ci -version
+          docker run --rm --entrypoint deno comradbot:ci --version
           docker run --rm --entrypoint python comradbot:ci -c "import comradbot"

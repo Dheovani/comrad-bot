@@ -15,6 +15,17 @@ from comradbot.errors import OperationTimeoutError, ResolverError
 
 logger = logging.getLogger(__name__)
 
+SAFE_STREAM_HEADERS = frozenset(
+    {
+        "accept",
+        "accept-language",
+        "origin",
+        "referer",
+        "sec-fetch-mode",
+        "user-agent",
+    }
+)
+
 
 class ResolverOperation(StrEnum):
     RESOLVE = "resolve"
@@ -60,6 +71,7 @@ def audio_item_from_info(raw: Any, *, query: str, requester_id: int) -> AudioIte
 
     title = info.get("title")
     webpage_url = info.get("webpage_url")
+    http_headers = _safe_stream_headers(info.get("http_headers"))
     return AudioItem(
         item_type=AudioItemType.MUSIC,
         title=title.strip() if isinstance(title, str) and title.strip() else "Untitled track",
@@ -67,7 +79,34 @@ def audio_item_from_info(raw: Any, *, query: str, requester_id: int) -> AudioIte
         requester_id=requester_id,
         duration_seconds=_optional_positive_float(info.get("duration")),
         webpage_url=webpage_url if isinstance(webpage_url, str) else query,
+        metadata={"http_headers": http_headers} if http_headers else {},
     )
+
+
+def _safe_stream_headers(value: Any) -> dict[str, str]:
+    """Keep non-secret extractor headers needed to open a temporary media URL."""
+    if not isinstance(value, Mapping):
+        return {}
+
+    headers: dict[str, str] = {}
+    for raw_name, raw_value in value.items():
+        if not isinstance(raw_name, str) or not isinstance(raw_value, str):
+            continue
+        name = raw_name.strip()
+        header_value = raw_value.strip()
+        if (
+            name.lower() not in SAFE_STREAM_HEADERS
+            or not header_value
+            or "\r" in name
+            or "\n" in name
+            or "\r" in header_value
+            or "\n" in header_value
+            or len(name) > 64
+            or len(header_value) > 1024
+        ):
+            continue
+        headers[name] = header_value
+    return headers
 
 
 def _optional_positive_float(value: Any) -> float | None:
@@ -102,6 +141,7 @@ class YtDlpAudioResolver:
             item.requester_id,
             ResolverOperation.REFRESH,
         )
+        item.metadata = refreshed.metadata
         return refreshed.source
 
     async def resolve(self, query: str, requester_id: int) -> AudioItem:

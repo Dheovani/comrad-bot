@@ -20,7 +20,7 @@ dependencies = [
   "openai>=1.99,<3",
   "pydantic-settings>=2.10,<3",
   "SQLAlchemy[asyncio]>=2.0,<2.2",
-  "yt-dlp>=2025.7.21",
+  "yt-dlp[default]>=2026.8.19,<2027",
 ]
 
 [project.optional-dependencies]

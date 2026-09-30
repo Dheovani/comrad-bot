@@ -1,4 +1,5 @@
 import asyncio
+import shlex
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -81,6 +82,21 @@ def test_ffmpeg_reconnect_options_are_only_used_for_streaming_music() -> None:
     assert "-reconnect 1" in ffmpeg_before_options(music)
     assert ffmpeg_before_options(custom_sound) == "-nostdin"
     assert ffmpeg_before_options(tts) == "-nostdin"
+
+
+def test_ffmpeg_forwards_resolver_headers_as_one_safe_argument() -> None:
+    music = audio_item("music")
+    music.metadata["http_headers"] = {
+        "User-Agent": "media client",
+        "Accept-Language": "en-US,en;q=0.5",
+    }
+
+    arguments = shlex.split(ffmpeg_before_options(music))
+
+    header_index = arguments.index("-headers")
+    assert arguments[header_index + 1] == (
+        "User-Agent: media client\r\nAccept-Language: en-US,en;q=0.5\r\n"
+    )
 
 
 @pytest.mark.asyncio

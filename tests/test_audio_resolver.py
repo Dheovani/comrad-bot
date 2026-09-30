@@ -39,6 +39,11 @@ def test_audio_item_from_search_result_uses_first_playable_entry() -> None:
                     "title": " Example Track ",
                     "duration": "123.5",
                     "webpage_url": "https://example.test/watch/1",
+                    "http_headers": {
+                        "User-Agent": "media-client",
+                        "Accept": "*/*",
+                        "Cookie": "must-not-be-forwarded",
+                    },
                 },
             ]
         },
@@ -52,6 +57,25 @@ def test_audio_item_from_search_result_uses_first_playable_entry() -> None:
     assert item.duration_seconds == 123.5
     assert item.webpage_url == "https://example.test/watch/1"
     assert item.requester_id == 42
+    assert item.metadata == {"http_headers": {"User-Agent": "media-client", "Accept": "*/*"}}
+
+
+def test_audio_item_rejects_unsafe_stream_headers() -> None:
+    item = audio_item_from_info(
+        {
+            "url": "https://media.example/audio",
+            "http_headers": {
+                "Authorization": "secret",
+                "User-Agent": "safe-client\r\nInjected: value",
+                "Referer": "https://example.test/",
+                123: "invalid-name",
+            },
+        },
+        query="example",
+        requester_id=42,
+    )
+
+    assert item.metadata == {"http_headers": {"Referer": "https://example.test/"}}
 
 
 @pytest.mark.parametrize("duration", [None, True, 0, -1, "unknown", object()])
@@ -154,6 +178,7 @@ async def test_refresh_source_resolves_original_public_page(
         "Track",
         "https://media.example/fresh",
         requester_id=42,
+        metadata={"http_headers": {"User-Agent": "refreshed-client"}},
     )
     resolve = AsyncMock(return_value=refreshed)
     monkeypatch.setattr(resolver, "_resolve", resolve)
@@ -169,6 +194,7 @@ async def test_refresh_source_resolves_original_public_page(
     source = await resolver.refresh_source(queued)
 
     assert source == "https://media.example/fresh"
+    assert queued.metadata == {"http_headers": {"User-Agent": "refreshed-client"}}
     resolve.assert_awaited_once_with(
         "https://example.test/watch/1",
         42,

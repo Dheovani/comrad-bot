@@ -170,6 +170,14 @@ Initial resolution and playback-time refresh have separate success, failure, tim
 counters. Logs classify inputs only as search text or URL and never include queries, stream URLs,
 database URLs, tokens, or provider keys. Counters are bounded and reset on restart.
 
+### YouTube challenge solving and stream headers
+
+The yt-dlp Python installation includes its matching EJS components and the container includes Deno,
+the runtime recommended by yt-dlp for YouTube JavaScript challenges. Resolved media remains a
+temporary stream. The resolver retains only a small allowlist of non-secret HTTP headers required by
+the media endpoint; cookies and authorization headers are never forwarded or logged. FFmpeg receives
+arguments without a shell, and queued tracks refresh both their URL and headers before playback.
+
 ### External heartbeat
 
 An optional operator-provided HTTPS URL enables a dead-man's-switch heartbeat compatible with

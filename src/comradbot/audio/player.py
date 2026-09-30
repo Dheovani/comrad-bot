@@ -2,6 +2,8 @@
 
 import asyncio
 import logging
+import shlex
+from collections.abc import Mapping
 
 import discord
 
@@ -16,7 +18,17 @@ STREAM_FFMPEG_BEFORE_OPTIONS = "-nostdin -reconnect 1 -reconnect_streamed 1 -rec
 
 def ffmpeg_before_options(item: AudioItem) -> str:
     if item.item_type is AudioItemType.MUSIC:
-        return STREAM_FFMPEG_BEFORE_OPTIONS
+        options = STREAM_FFMPEG_BEFORE_OPTIONS
+        headers = item.metadata.get("http_headers")
+        if isinstance(headers, Mapping):
+            serialized = "".join(
+                f"{name}: {value}\r\n"
+                for name, value in headers.items()
+                if isinstance(name, str) and isinstance(value, str)
+            )
+            if serialized:
+                options = f"{options} -headers {shlex.quote(serialized)}"
+        return options
     return LOCAL_FFMPEG_BEFORE_OPTIONS
 
 

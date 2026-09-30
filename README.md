@@ -27,7 +27,7 @@ and [technical decisions](docs/technical-decisions.md) for architecture and trad
 ## Requirements
 
 - Python 3.12 or newer;
-- FFmpeg and FFprobe on `PATH`;
+- FFmpeg, FFprobe, and Deno 2.3 or newer on `PATH` for full YouTube support;
 - a Discord application and bot token;
 - Git.
 
@@ -51,6 +51,13 @@ Install FFmpeg with WinGet, restart the terminal, and verify both executables:
 winget install --id Gyan.FFmpeg -e
 ffmpeg -version
 ffprobe -version
+```
+
+Install Deno for yt-dlp's YouTube challenge solver and verify it:
+
+```bash
+winget install --id DenoLand.Deno -e
+deno --version
 ```
 
 If virtual environment creation reports `Permission denied` while `(.venv)` is already visible,
@@ -91,7 +98,7 @@ Create a key in the Groq console and configure:
 ```env
 AI_PROVIDER=groq
 GROQ_API_KEY=replace-me
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-120b
 GROQ_TRANSCRIPTION_MODEL=whisper-large-v3-turbo
 ```
 
@@ -199,6 +206,8 @@ the checks on Python 3.12 and 3.13, builds the container, and publishes coverage
   restart the bot.
 - **Voice is unavailable:** reinstall with `python -m pip install -e ".[dev]"` and verify Connect and
   Speak permissions plus FFmpeg and FFprobe.
+- **YouTube music returns HTTP 403:** update the project dependencies, verify `deno --version`, and
+  rebuild or pull the current image; older `1.1.0` images contain an obsolete yt-dlp release.
 - **AI is disabled:** configure `AI_PROVIDER` and its matching key; non-AI features remain available.
 - **Summarization is disabled:** enable Message Content Intent in the portal and `.env`.
 - **Uploads fail:** confirm the configured size and duration limits; FFprobe validates real content,

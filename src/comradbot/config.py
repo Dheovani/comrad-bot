@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     openai_tts_model: str = "gpt-4o-mini-tts"
     openai_tts_voice: str = "coral"
     groq_api_key: SecretStr | None = None
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
     groq_transcription_model: Literal["whisper-large-v3", "whisper-large-v3-turbo"] = (
         "whisper-large-v3-turbo"
     )

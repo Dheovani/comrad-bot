@@ -15,3 +15,4 @@ build/
 data/*
 !data/.gitkeep
 alembic.ini.local
+tmp/
