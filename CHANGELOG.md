@@ -12,6 +12,8 @@ The project follows [Semantic Versioning](https://semver.org/).
   JavaScript runtime in the container, and by forwarding safe extractor HTTP headers to FFmpeg.
 - Replaced the retired Groq developer-tier `llama-3.3-70b-versatile` default with its supported
   `openai/gpt-oss-120b` successor.
+- Added weekly dependency updates and scheduled live YouTube/Groq compatibility checks that open a
+  maintenance issue on failure.
 
 ## [1.1.0] — 2026-08-03
 

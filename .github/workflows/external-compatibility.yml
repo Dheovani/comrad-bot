@@ -1,0 +1,87 @@
+name: External compatibility
+
+on:
+  schedule:
+    - cron: "17 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: external-compatibility
+  cancel-in-progress: false
+
+jobs:
+  live-checks:
+    name: YouTube and Groq
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build current container
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: comradbot:external-check
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Check YouTube resolution and streaming
+        run: >-
+          docker run --rm
+          --mount type=bind,source="${{ github.workspace }}/scripts/check_external_compatibility.py",target=/tmp/check_external_compatibility.py,readonly
+          --entrypoint python
+          comradbot:external-check
+          /tmp/check_external_compatibility.py youtube
+
+      - name: Check configured Groq model
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: ${{ vars.GROQ_MODEL || 'openai/gpt-oss-120b' }}
+        run: |
+          if [ -z "$GROQ_API_KEY" ]; then
+            echo "::warning::GROQ_API_KEY is not configured; skipping the Groq model check."
+            exit 0
+          fi
+          docker run --rm \
+            --env GROQ_API_KEY \
+            --env GROQ_MODEL \
+            --mount type=bind,source="${{ github.workspace }}/scripts/check_external_compatibility.py",target=/tmp/check_external_compatibility.py,readonly \
+            --entrypoint python \
+            comradbot:external-check \
+            /tmp/check_external_compatibility.py groq
+
+      - name: Open compatibility incident
+        if: ${{ failure() }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = "[maintenance] External compatibility check failed";
+            const { owner, repo } = context.repo;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+            if (issues.some((issue) => issue.title === title && !issue.pull_request)) {
+              core.info("An open compatibility incident already exists.");
+              return;
+            }
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body: `The scheduled YouTube/Groq compatibility check failed. Review the [workflow run](${runUrl}) for sanitized diagnostics.`,
+            });

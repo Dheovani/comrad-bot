@@ -78,3 +78,22 @@ def test_dependency_and_container_security_automation_is_configured() -> None:
     assert "github/codeql-action/upload-sarif@v4" in security_workflow
     assert "severity: HIGH,CRITICAL" in security_workflow
     assert 'exit-code: "1"' in security_workflow
+
+
+def test_external_compatibility_maintenance_is_configured() -> None:
+    dependabot = (PROJECT_ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+    workflow = (PROJECT_ROOT / ".github/workflows/external-compatibility.yml").read_text(
+        encoding="utf-8"
+    )
+    check_script = (PROJECT_ROOT / "scripts/check_external_compatibility.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert dependabot.count("interval: weekly") == 3
+    assert "check_external_compatibility.py youtube" in workflow
+    assert "check_external_compatibility.py groq" in workflow
+    assert "secrets.GROQ_API_KEY" in workflow
+    assert "if: ${{ failure() }}" in workflow
+    assert "issues: write" in workflow
+    assert "client.models.list()" in check_script
+    assert "FFmpeg could not consume" in check_script

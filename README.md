@@ -200,6 +200,11 @@ python -m pytest
 The default suite does not contact Discord, AI providers, or music platforms. GitHub Actions runs
 the checks on Python 3.12 and 3.13, builds the container, and publishes coverage artifacts.
 
+Dependabot checks Python, Docker, and Actions dependencies weekly. A separate scheduled workflow
+performs live YouTube-to-FFmpeg and Groq model-availability checks and opens one maintenance issue on
+failure. Add `GROQ_API_KEY` as an Actions secret to enable the Groq check; optionally set the
+`GROQ_MODEL` Actions variable when using a model other than the documented default.
+
 ## Troubleshooting
 
 - **Commands are missing:** set `DISCORD_GUILD_ID`, verify the `applications.commands` scope, and

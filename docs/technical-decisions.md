@@ -185,6 +185,15 @@ Healthchecks.io. Redirects are disabled, timeouts are bounded, delivery failures
 the secret URL is never logged. This complements rather than replaces Docker's dependency health
 check.
 
+### Scheduled external compatibility checks
+
+The deterministic test suite never contacts external platforms. A separate weekly GitHub Actions
+workflow builds the current container, resolves a public YouTube search and asks FFmpeg to consume a
+short stream segment. It also lists active Groq models when the repository has a `GROQ_API_KEY`
+Actions secret. This model-list operation performs no inference. Failures open a single maintenance
+issue, while an existing open incident suppresses duplicates. Dependabot runs weekly for Python,
+Docker, and Actions dependencies; it cannot detect provider-side model retirement on its own.
+
 ### Container and release model
 
 The container runs as a non-root user and stores mutable data only in `/app/data`. Production Compose
