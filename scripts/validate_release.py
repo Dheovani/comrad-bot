@@ -35,7 +35,7 @@ def validate_release(tag: str, project_root: Path = PROJECT_ROOT) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate ComradBot release metadata")
-    parser.add_argument("tag", help="Git tag to validate, such as v1.1.0")
+    parser.add_argument("tag", help="Git tag to validate, such as v1.1.1")
     args = parser.parse_args()
 
     try:

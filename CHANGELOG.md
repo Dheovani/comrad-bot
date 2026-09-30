@@ -6,12 +6,18 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ## [1.1.1] — 2026-09-30
 
+ComradBot 1.1.1 is a maintenance release that restores integrations affected by upstream YouTube
+and Groq changes and adds early-warning automation for future compatibility regressions.
+
 ### Fixed
 
 - Restored YouTube music playback by installing the current yt-dlp EJS components and the Deno
   JavaScript runtime in the container, and by forwarding safe extractor HTTP headers to FFmpeg.
 - Replaced the retired Groq developer-tier `llama-3.3-70b-versatile` default with its supported
   `openai/gpt-oss-120b` successor.
+
+### Maintenance
+
 - Added weekly dependency updates and scheduled live YouTube/Groq compatibility checks that open a
   maintenance issue on failure.
 

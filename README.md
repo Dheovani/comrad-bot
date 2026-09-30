@@ -21,7 +21,7 @@ Music, sounds, and TTS share one isolated audio player per Discord server.
 - Discord-native polls for game-night planning;
 - Docker health checks, optional external heartbeat monitoring, and automated container releases.
 
-See [CHANGELOG.md](CHANGELOG.md) for the 1.1.0 release, [TODO.md](TODO.md) for the remaining roadmap,
+See [CHANGELOG.md](CHANGELOG.md) for the 1.1.1 release, [TODO.md](TODO.md) for the remaining roadmap,
 and [technical decisions](docs/technical-decisions.md) for architecture and tradeoffs.
 
 ## Requirements
@@ -150,7 +150,7 @@ docker compose -f compose.production.yaml ps
 docker compose -f compose.production.yaml logs -f comradbot
 ```
 
-The production file pins `theovani/comradbot:1.1.0`. The named `comradbot-data` volume contains the
+The production file pins `theovani/comradbot:1.1.1`. The named `comradbot-data` volume contains the
 database and custom sounds. Routine shutdown must not use `--volumes`.
 
 Contributors can build the current checkout with:
@@ -212,7 +212,7 @@ failure. Add `GROQ_API_KEY` as an Actions secret to enable the Groq check; optio
 - **Voice is unavailable:** reinstall with `python -m pip install -e ".[dev]"` and verify Connect and
   Speak permissions plus FFmpeg and FFprobe.
 - **YouTube music returns HTTP 403:** update the project dependencies, verify `deno --version`, and
-  rebuild or pull the current image; older `1.1.0` images contain an obsolete yt-dlp release.
+  rebuild or pull version `1.1.1` or newer; older images contain an obsolete yt-dlp release.
 - **AI is disabled:** configure `AI_PROVIDER` and its matching key; non-AI features remain available.
 - **Summarization is disabled:** enable Message Content Intent in the portal and `.env`.
 - **Uploads fail:** confirm the configured size and duration limits; FFprobe validates real content,

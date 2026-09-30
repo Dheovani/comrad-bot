@@ -1,6 +1,6 @@
 # ComradBot future roadmap
 
-ComradBot 1.1.0 delivery history is recorded in [CHANGELOG.md](CHANGELOG.md). Only one deferred
+ComradBot release history through 1.1.1 is recorded in [CHANGELOG.md](CHANGELOG.md). Only one deferred
 evolution opportunity remains.
 
 ## Voice recognition
