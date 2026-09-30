@@ -97,3 +97,12 @@ def test_external_compatibility_maintenance_is_configured() -> None:
     assert "issues: write" in workflow
     assert "client.models.list()" in check_script
     assert "FFmpeg could not consume" in check_script
+
+
+def test_quality_ci_avoids_reinstalling_available_audio_tools() -> None:
+    workflow = (PROJECT_ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "timeout-minutes: 25" in workflow
+    assert "if ! command -v ffmpeg" in workflow
+    assert "! command -v ffprobe" in workflow
+    assert "--no-install-recommends ffmpeg" in workflow

@@ -20,6 +20,7 @@ and Groq changes and adds early-warning automation for future compatibility regr
 
 - Added weekly dependency updates and scheduled live YouTube/Groq compatibility checks that open a
   maintenance issue on failure.
+- Prevented CI timeouts from unnecessary FFmpeg reinstalls while retaining Python 3.12 coverage.
 
 ## [1.1.0] — 2026-08-03
 
